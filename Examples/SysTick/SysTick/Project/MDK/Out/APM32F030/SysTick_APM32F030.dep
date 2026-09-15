@@ -1,0 +1,313 @@
+Dependencies for Project 'SysTick', Target 'APM32F030': (DO NOT MODIFY !)
+CompilerVersion: 5060750::V5.06 update 6 (build 750)::ARMCC
+F (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Source\system_apm32f0xx.c)(0x6A472C26)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\system_apm32f0xx.o --omf_browse .\out\apm32f030\system_apm32f0xx.crf --depend .\out\apm32f030\system_apm32f0xx.d)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Source\arm\startup_apm32f030.s)(0x6A472C26)(--cpu Cortex-M0+ -g --apcs=interwork --pd "__MICROLIB SETA 1"-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include--pd "__UVISION_VERSION SETA 539" --pd "APM32F030X8 SETA 1"--list .\listings\apm32f030\startup_apm32f030.lst --xref -o .\out\apm32f030\startup_apm32f030.o --depend .\out\apm32f030\startup_apm32f030.d)
+F (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Source\arm\startup_apm32f072.s)(0x6A472C26)()
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_adc.c)(0x6A472CBF)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_adc.o --omf_browse .\out\apm32f030\apm32f0xx_adc.crf --depend .\out\apm32f030\apm32f0xx_adc.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_adc.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_can.c)(0x6A472CBF)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_can.o --omf_browse .\out\apm32f030\apm32f0xx_can.crf --depend .\out\apm32f030\apm32f0xx_can.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_can.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_cec.c)(0x6A472CBF)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_cec.o --omf_browse .\out\apm32f030\apm32f0xx_cec.crf --depend .\out\apm32f030\apm32f0xx_cec.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_cec.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_comp.c)(0x6A472CBF)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_comp.o --omf_browse .\out\apm32f030\apm32f0xx_comp.crf --depend .\out\apm32f030\apm32f0xx_comp.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_comp.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_crc.c)(0x6A472CBF)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_crc.o --omf_browse .\out\apm32f030\apm32f0xx_crc.crf --depend .\out\apm32f030\apm32f0xx_crc.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_crc.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_crs.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_crs.o --omf_browse .\out\apm32f030\apm32f0xx_crs.crf --depend .\out\apm32f030\apm32f0xx_crs.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_crs.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_dac.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_dac.o --omf_browse .\out\apm32f030\apm32f0xx_dac.crf --depend .\out\apm32f030\apm32f0xx_dac.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_dac.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_dbg.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_dbg.o --omf_browse .\out\apm32f030\apm32f0xx_dbg.crf --depend .\out\apm32f030\apm32f0xx_dbg.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_dbg.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_dma.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_dma.o --omf_browse .\out\apm32f030\apm32f0xx_dma.crf --depend .\out\apm32f030\apm32f0xx_dma.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_dma.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_eint.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_eint.o --omf_browse .\out\apm32f030\apm32f0xx_eint.crf --depend .\out\apm32f030\apm32f0xx_eint.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_eint.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_fmc.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_fmc.o --omf_browse .\out\apm32f030\apm32f0xx_fmc.crf --depend .\out\apm32f030\apm32f0xx_fmc.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_fmc.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_gpio.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_gpio.o --omf_browse .\out\apm32f030\apm32f0xx_gpio.crf --depend .\out\apm32f030\apm32f0xx_gpio.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_gpio.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_i2c.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_i2c.o --omf_browse .\out\apm32f030\apm32f0xx_i2c.crf --depend .\out\apm32f030\apm32f0xx_i2c.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_i2c.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_iwdt.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_iwdt.o --omf_browse .\out\apm32f030\apm32f0xx_iwdt.crf --depend .\out\apm32f030\apm32f0xx_iwdt.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_iwdt.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_misc.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_misc.o --omf_browse .\out\apm32f030\apm32f0xx_misc.crf --depend .\out\apm32f030\apm32f0xx_misc.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_misc.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_ob.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_ob.o --omf_browse .\out\apm32f030\apm32f0xx_ob.crf --depend .\out\apm32f030\apm32f0xx_ob.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_ob.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_pmu.c)(0x6A472CC0)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_pmu.o --omf_browse .\out\apm32f030\apm32f0xx_pmu.crf --depend .\out\apm32f030\apm32f0xx_pmu.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_pmu.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_rcm.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_rcm.o --omf_browse .\out\apm32f030\apm32f0xx_rcm.crf --depend .\out\apm32f030\apm32f0xx_rcm.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_rtc.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_rtc.o --omf_browse .\out\apm32f030\apm32f0xx_rtc.crf --depend .\out\apm32f030\apm32f0xx_rtc.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rtc.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_spi.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_spi.o --omf_browse .\out\apm32f030\apm32f0xx_spi.crf --depend .\out\apm32f030\apm32f0xx_spi.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_spi.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_syscfg.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_syscfg.o --omf_browse .\out\apm32f030\apm32f0xx_syscfg.crf --depend .\out\apm32f030\apm32f0xx_syscfg.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_syscfg.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_tmr.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_tmr.o --omf_browse .\out\apm32f030\apm32f0xx_tmr.crf --depend .\out\apm32f030\apm32f0xx_tmr.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_tmr.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_usart.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_usart.o --omf_browse .\out\apm32f030\apm32f0xx_usart.crf --depend .\out\apm32f030\apm32f0xx_usart.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_usart.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\src\apm32f0xx_wwdt.c)(0x6A472CC1)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_wwdt.o --omf_browse .\out\apm32f030\apm32f0xx_wwdt.crf --depend .\out\apm32f030\apm32f0xx_wwdt.d)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_wwdt.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+F (..\..\..\..\..\Boards\Board.c)(0x6A472CBF)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\board.o --omf_browse .\out\apm32f030\board.crf --depend .\out\apm32f030\board.d)
+I (..\..\..\..\..\Boards\Board.h)(0x6A472CBF)
+I (..\..\..\..\..\Boards\Board_APM32F030_MINI/inc/Board_APM32F030_MINI.h)(0x6A472C20)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_gpio.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_usart.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+I (..\..\..\..\..\Boards\Board_APM32F030_MINI/src/Board_APM32F030_MINI.c)(0x6A472C20)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdio.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_eint.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_misc.h)(0x6A472CC1)
+F (..\..\Source\main.c)(0x6A4DED20)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\main.o --omf_browse .\out\apm32f030\main.crf --depend .\out\apm32f030\main.d)
+I (..\..\..\..\..\Boards\Board.h)(0x6A472CBF)
+I (..\..\..\..\..\Boards\Board_APM32F030_MINI/inc/Board_APM32F030_MINI.h)(0x6A472C20)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_gpio.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_usart.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_rcm.h)(0x6A472CC1)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdio.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_misc.h)(0x6A472CC1)
+I (..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc\apm32f0xx_eint.h)(0x6A472CC1)
+F (..\..\Source\apm32f0xx_int.c)(0x6A472C26)(--c99 --gnu -c --cpu Cortex-M0+ -D__MICROLIB -g -O0 --apcs=interwork --split_sections -I ..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc -I ..\..\..\..\..\Libraries\CMSIS\Include -I ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include -I ..\..\..\..\..\Boards -I ..\..\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Device\Geehy\APM32F0xx\Include-ID:\soft\codeSoft\keil_pack\Geehy\APM32F0xx_DFP\1.1.4\Device\Include-D__UVISION_VERSION="539" -DAPM32F030X8 -DBOARD_APM32F030_MINI -DAPM32F030x8-o .\out\apm32f030\apm32f0xx_int.o --omf_browse .\out\apm32f030\apm32f0xx_int.crf --depend .\out\apm32f030\apm32f0xx_int.d)
+I (..\..\Include\apm32f0xx_int.h)(0x6A472C26)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h)(0x6A472CBF)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h)(0x6A0FF72D)
+I (..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h)(0x6A0FF72A)
+I (D:\soft\codeSoft\Keil_v5\ARM\ARMCC\include\stdint.h)(0x5EC775FC)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h)(0x6A0FF72A)
+I (..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h)(0x6A472C26)
+I (..\..\Include\main.h)(0x6A472C26)
