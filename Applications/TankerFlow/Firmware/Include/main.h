@@ -2,7 +2,7 @@
 #define MAIN_H
 
 #define APP_NAME       "tanker-flow-mcu"
-#define APP_VERSION    "0.3.0-phase3a"
+#define APP_VERSION    "0.3.1-phase3b"
 #define APP_HEARTBEAT_PERIOD_MS  (1000U)
 
 #endif /* MAIN_H */

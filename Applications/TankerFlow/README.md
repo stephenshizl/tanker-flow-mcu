@@ -1,8 +1,8 @@
 # TankerFlow APM32F030RC Firmware
 
-## Phase-3A baseline: BSP self-test + charger driver + ADC observability
+## Phase-3B baseline: GNSS NMEA stream parser on the Phase-3A BSP
 
-This step builds on the reviewed Phase-2 peripheral BSP.  The scope remains deliberately small: add a board self-test/diagnostic layer, a minimal SGM41511 charger driver, charger nINT handling, ADC checked/averaged/pin-voltage APIs, and UART receive statistics.  Bootloader, OTA/FOTA, 4G AT state machine, GNSS NMEA parsing, Bluetooth business protocol, flowmeter Modbus register parsing, server protocol and application state machine are still out of scope.
+Phase-3B builds directly on the committed Phase-3A BSP.  The scope is deliberately limited to the GNSS software receive path: USART4 DMA+IDLE ring-buffer data is consumed in foreground context, framed into NMEA sentences, checksum-validated, and minimally decoded for RMC/GGA.  Bootloader, OTA/FOTA, 4G AT state machine, Bluetooth business protocol, flowmeter Modbus register parsing, server protocol and application state machine remain out of scope.
 
 ### Build target
 
@@ -10,7 +10,7 @@ This step builds on the reviewed Phase-2 peripheral BSP.  The scope remains deli
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.0-phase3a`
+- App version: `0.3.1-phase3b`
 
 ### Frozen board mapping
 
@@ -28,6 +28,27 @@ This step builds on the reviewed Phase-2 peripheral BSP.  The scope remains deli
 | ADC | PA6=ADC_IN6, PA7=ADC_IN7, PB0=ADC_IN8, PB1=ADC_IN9 | 12-bit checked/average/raw read |
 
 `Firmware/Include/board_pinmap.h` remains the only source of truth for physical pin assignments.
+
+
+### Phase-3B GNSS parser
+
+- `Drivers/GNSS/gnss.*`: stream framing/integration layer.
+  - foreground-only consumption from `BSP_UART_GNSS`; ISR/DMA code stays protocol-free;
+  - accepts arbitrary chunks, including split sentences, concatenated sentences and garbage prefixes;
+  - resynchronizes on `$` and drops overlength lines safely;
+  - exposes `GNSS_Info_T`, `GNSS_Stats_T` and `GNSS_IsFresh()`;
+  - uses fixed static storage only.
+- `Drivers/GNSS/nmea_parser.*`: pure NMEA sentence decoder.
+  - validates XOR checksum before parsing;
+  - supports RMC and GGA from GN/GP and other standard two-character talker IDs;
+  - converts latitude/longitude to signed degrees x 1e7 without floating point;
+  - converts RMC speed from knots to integer cm/s;
+  - records UTC/date/fix quality/satellite count as available.
+- `Firmware/Tests/gnss_host_test.c`: host-side regression vectors for normal/invalid RMC, GGA, bad checksum, split/concatenated packets, garbage-prefix resync, overlength recovery, hemisphere conversion and stale-fix logic.
+
+The production GNSS path intentionally does not use `malloc`, `sscanf`, `atof`, `float` or `double`.  NMEA parsing is never performed from USART/DMA interrupt context.
+
+`last_update_ms` is refreshed only when a sentence carries a valid position.  Invalid-fix sentences can mark `valid=0` without erasing the last coordinates, allowing the application to distinguish last-known position from a current fresh fix.
 
 ### Phase-3A modules
 
@@ -93,6 +114,17 @@ If SGM41511 is absent, I2C wiring/power is wrong, or ADC initialization fails, s
 5. Trigger/remove charger input and confirm PA11 nINT count changes; ISR must remain short and no I2C transaction may occur inside the interrupt handler.
 6. Measure PA6/PA7/PB0/PB1 with a multimeter and compare with reported `pin_mv` before adding any divider scaling.
 7. Feed known serial data to each UART and use `BSP_Uart_GetStats()` to distinguish no-data, IDLE/DMA behavior and ring overflow.
-8. Only after Phase-3A hardware checks pass should Phase-3B add the GNSS NMEA receive/parser layer.
+8. Phase-3B can be host-tested without hardware.  When a board is available, feed/observe real ATGM336H NMEA on USART4 and compare `GNSS_Stats_T` with the UART DMA/IDLE counters.
 
-Do not add Bootloader/OTA or business protocols in this phase.
+### Phase-3B host validation
+
+From `Applications/TankerFlow/Firmware` on a host with GCC:
+
+```text
+gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/GNSS Tests/gnss_host_test.c Drivers/GNSS/gnss.c Drivers/GNSS/nmea_parser.c -o gnss_host_test
+./gnss_host_test
+```
+
+Expected final line: `GNSS host tests: PASS`.
+
+Do not add Bootloader/OTA, GNSS vendor configuration commands, coordinate-map conversion, 4G upload or other business protocols in this phase.

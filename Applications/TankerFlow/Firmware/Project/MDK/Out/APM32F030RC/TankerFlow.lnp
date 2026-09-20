@@ -30,6 +30,14 @@
 ".\out\apm32f030rc\apm32f0xx_int.o"
 ".\out\apm32f030rc\bsp_tick.o"
 ".\out\apm32f030rc\bsp_debug_uart.o"
+".\out\apm32f030rc\bsp_ring_buffer.o"
+".\out\apm32f030rc\bsp_gpio.o"
+".\out\apm32f030rc\bsp_uart.o"
+".\out\apm32f030rc\bsp_i2c.o"
+".\out\apm32f030rc\bsp_adc.o"
+".\out\apm32f030rc\bsp_peripherals.o"
+".\out\apm32f030rc\bsp_selftest.o"
+".\out\apm32f030rc\sgm41511.o"
 --library_type=microlib --strict --scatter ".\Out\APM32F030RC\TankerFlow.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

@@ -5,6 +5,7 @@
 #include "bsp_peripherals.h"
 #include "bsp_selftest.h"
 #include "bsp_tick.h"
+#include "gnss.h"
 
 int main(void)
 {
@@ -19,6 +20,7 @@ int main(void)
     BSP_DebugUart_Write("[UART] USART1 debug  PA9/PA10   115200 8N1 IRQ\r\n");
 
     BSP_Peripherals_Init();
+    GNSS_Init();
 
     BSP_DebugUart_Write("[UART] USART2 BT     PA2/PA3     115200 8N1 IRQ\r\n");
     BSP_DebugUart_Write("[UART] USART3 4G     PB10/PB11   115200 8N1 DMA+IDLE\r\n");
@@ -27,13 +29,16 @@ int main(void)
     BSP_DebugUart_Write("[I2C ] I2C1 PB8/PB9 100kHz, SGM41511 driver enabled\r\n");
     BSP_DebugUart_Write("[ADC ] ADC_IN6..9 raw/average/pin-mV API initialized\r\n");
     BSP_DebugUart_Write("[GPIO] CHARGE_INT falling-edge IRQ; external controls remain safe\r\n");
-    BSP_DebugUart_Write("[PASS] phase-3A BSP/driver initialization complete\r\n");
+    BSP_DebugUart_Write("[GNSS] NMEA stream parser enabled: RMC/GGA, integer coordinates\r\n");
+    BSP_DebugUart_Write("[PASS] phase-3B GNSS parser initialization complete\r\n");
 
     (void)BSP_SelfTest_Run();
 
     heartbeat_start_ms = BSP_Tick_GetMs();
     while (1)
     {
+        GNSS_Process();
+
         if (BSP_ChargerInterrupt_Consume() != 0U)
         {
             BSP_DebugUart_Write("[EVT ] SGM41511 nINT count=");

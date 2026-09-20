@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>BOARD_APM32F030_MINI,APM32F030xC</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511</IncludePath>
+              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -723,6 +723,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+            <File>
+              <FileName>gnss.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+            </File>
+            <File>
+              <FileName>nmea_parser.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -737,8 +747,8 @@
         <TargetCommonOption>
           <Device>APM32F051R8</Device>
           <Vendor>Geehy</Vendor>
-          <PackID>Geehy.APM32F0xx_DFP.1.1.0</PackID>
-          <PackURL>https://www.geehy.com/uploads/tool/</PackURL>
+          <PackID>Geehy.APM32F0xx_DFP.1.1.4</PackID>
+          <PackURL>https://global.geehy.com/uploads/tool/</PackURL>
           <Cpu>IRAM(0x20000000,0x2000) IROM(0x08000000,0x10000) CPUTYPE("Cortex-M0+") CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
@@ -1404,6 +1414,46 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_debug_uart.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_ring_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_ring_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_i2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_peripherals.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_selftest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_selftest.c</FilePath>
+            </File>
+            <File>
+              <FileName>sgm41511.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -1418,8 +1468,8 @@
         <TargetCommonOption>
           <Device>APM32F072VB</Device>
           <Vendor>Geehy</Vendor>
-          <PackID>Geehy.APM32F0xx_DFP.1.1.0</PackID>
-          <PackURL>https://www.geehy.com/uploads/tool/</PackURL>
+          <PackID>Geehy.APM32F0xx_DFP.1.1.4</PackID>
+          <PackURL>https://global.geehy.com/uploads/tool/</PackURL>
           <Cpu>IRAM(0x20000000,0x4000) IROM(0x08000000,0x20000) CPUTYPE("Cortex-M0+") CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
@@ -2085,6 +2135,46 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_debug_uart.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_ring_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_ring_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_i2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_peripherals.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_selftest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_selftest.c</FilePath>
+            </File>
+            <File>
+              <FileName>sgm41511.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -2099,8 +2189,8 @@
         <TargetCommonOption>
           <Device>APM32F091VC</Device>
           <Vendor>Geehy</Vendor>
-          <PackID>Geehy.APM32F0xx_DFP.1.1.0</PackID>
-          <PackURL>https://www.geehy.com/uploads/tool/</PackURL>
+          <PackID>Geehy.APM32F0xx_DFP.1.1.4</PackID>
+          <PackURL>https://global.geehy.com/uploads/tool/</PackURL>
           <Cpu>IRAM(0x20000000,0x8000) IROM(0x08000000,0x40000) CPUTYPE("Cortex-M0+") CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
@@ -2765,6 +2855,46 @@
               <FileName>bsp_debug_uart.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_debug_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_ring_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_ring_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_i2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_peripherals.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_selftest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_selftest.c</FilePath>
+            </File>
+            <File>
+              <FileName>sgm41511.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
           </Files>
         </Group>

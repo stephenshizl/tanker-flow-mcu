@@ -9,4 +9,7 @@
 .\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h
 .\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h
 .\out\apm32f030rc\main.o: ..\..\Include\bsp_debug_uart.h
+.\out\apm32f030rc\main.o: ..\..\Include\bsp_gpio.h
+.\out\apm32f030rc\main.o: ..\..\Include\bsp_peripherals.h
+.\out\apm32f030rc\main.o: ..\..\Include\bsp_selftest.h
 .\out\apm32f030rc\main.o: ..\..\Include\bsp_tick.h
