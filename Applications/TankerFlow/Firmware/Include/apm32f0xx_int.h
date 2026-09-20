@@ -7,4 +7,11 @@ void SVC_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
 
+void DMA1_CH2_3_IRQHandler(void);
+void DMA1_CH4_5_IRQHandler(void);
+void TMR16_IRQHandler(void);
+void USART1_IRQHandler(void);
+void USART2_IRQHandler(void);
+void USART3_6_IRQHandler(void);
+
 #endif

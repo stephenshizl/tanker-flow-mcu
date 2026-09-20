@@ -1,0 +1,12 @@
+.\out\apm32f030rc\main.o: ..\..\Source\main.c
+.\out\apm32f030rc\main.o: ..\..\Include\main.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f0xx.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\apm32f030xx.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\CMSIS\Include\core_cm0plus.h
+.\out\apm32f030rc\main.o: D:\soft\codeSoft\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\CMSIS\Include\cmsis_version.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\CMSIS\Include\cmsis_compiler.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\CMSIS\Include\cmsis_armcc.h
+.\out\apm32f030rc\main.o: ..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include\system_apm32f0xx.h
+.\out\apm32f030rc\main.o: ..\..\Include\bsp_debug_uart.h
+.\out\apm32f030rc\main.o: ..\..\Include\bsp_tick.h
