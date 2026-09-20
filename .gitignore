@@ -1,0 +1,79 @@
+# =============================================================================
+# TankerFlow / APM32F0xx SDK Git ignore rules
+# Keep source, project configuration and documentation in Git.
+# Ignore generated build artifacts, IDE user state and temporary files.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Compiler / assembler intermediate files
+# These are always generated and should never be committed.
+# -----------------------------------------------------------------------------
+*.o
+*.obj
+*.d
+*.dep
+*.crf
+*.lnp
+
+# -----------------------------------------------------------------------------
+# TankerFlow Keil MDK build output directories
+# -----------------------------------------------------------------------------
+/Applications/TankerFlow/**/Objects/
+/Applications/TankerFlow/**/Listings/
+/Applications/TankerFlow/**/Out/
+/Applications/TankerFlow/**/Output/
+/Applications/TankerFlow/**/Build/
+/Applications/TankerFlow/**/build/
+
+# -----------------------------------------------------------------------------
+# TankerFlow linker / firmware generated outputs
+# Scope these to TankerFlow so vendor SDK binary resources elsewhere are not
+# accidentally hidden from Git.
+# -----------------------------------------------------------------------------
+/Applications/TankerFlow/**/*.axf
+/Applications/TankerFlow/**/*.elf
+/Applications/TankerFlow/**/*.map
+/Applications/TankerFlow/**/*.lst
+/Applications/TankerFlow/**/*.hex
+/Applications/TankerFlow/**/*.bin
+
+# -----------------------------------------------------------------------------
+# Keil uVision per-user / workspace state
+#
+# Keep:
+#   *.uvprojx  -> shared project definition
+#
+# Ignore:
+#   *.uvguix.* -> per-user GUI/debug state
+#   *.uvgui.*  -> legacy per-user GUI state
+#   *.uvoptx   -> local uVision option/debug state for this project
+# -----------------------------------------------------------------------------
+/Applications/TankerFlow/Firmware/Project/MDK/*.uvguix.*
+/Applications/TankerFlow/Firmware/Project/MDK/*.uvgui.*
+/Applications/TankerFlow/Firmware/Project/MDK/*.uvoptx
+/Applications/TankerFlow/Firmware/Project/MDK/JLinkLog.txt
+
+# -----------------------------------------------------------------------------
+# Host/offline unit-test generated files
+# Test source files (*.c/*.h) remain tracked.
+# -----------------------------------------------------------------------------
+/Applications/TankerFlow/Firmware/Tests/*.exe
+/Applications/TankerFlow/Firmware/Tests/*.out
+/Applications/TankerFlow/Firmware/Tests/*.log
+/Applications/TankerFlow/Firmware/Tests/build/
+/Applications/TankerFlow/Firmware/Tests/Build/
+
+# -----------------------------------------------------------------------------
+# Editor / OS temporary files
+# Do not ignore .vscode globally: useful shared project configuration may be
+# intentionally committed later.
+# -----------------------------------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
