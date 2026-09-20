@@ -5,6 +5,10 @@
 #include "apm32f0xx_gpio.h"
 #include "apm32f0xx_rcm.h"
 
+#define BSP_ADC_CONVERSION_TIMEOUT  (100000U)
+
+static uint8_t g_adc_ready;
+
 static uint32_t Adc_ChannelFromInput(BSP_AdcInput_T input)
 {
     switch (input)
@@ -33,6 +37,8 @@ void BSP_Adc_Init(void)
     ADC_Config_T config;
     uint32_t timeout;
 
+    g_adc_ready = 0U;
+
     RCM_EnableAHBPeriphClock(RCM_AHB_PERIPH_GPIOA | RCM_AHB_PERIPH_GPIOB);
     RCM_EnableAPB2PeriphClock(RCM_APB2_PERIPH_ADC1 | RCM_APB2_PERIPH_SYSCFG);
 
@@ -54,22 +60,36 @@ void BSP_Adc_Init(void)
     (void)ADC_ReadCalibrationFactor();
     ADC_Enable();
 
-    timeout = 100000U;
+    timeout = BSP_ADC_CONVERSION_TIMEOUT;
     while ((ADC_ReadStatusFlag(ADC_FLAG_ADRDY) == RESET) && (timeout > 0U))
     {
         timeout--;
     }
+    if (timeout > 0U)
+    {
+        g_adc_ready = 1U;
+    }
 }
 
-uint16_t BSP_Adc_ReadRaw(BSP_AdcInput_T input)
+uint8_t BSP_Adc_IsReady(void)
+{
+    return g_adc_ready;
+}
+
+int BSP_Adc_ReadRawChecked(BSP_AdcInput_T input, uint16_t *raw)
 {
     uint32_t channel;
     uint32_t timeout;
 
+    if ((raw == 0) || (g_adc_ready == 0U))
+    {
+        return -1;
+    }
+
     channel = Adc_ChannelFromInput(input);
     if (channel == 0U)
     {
-        return 0U;
+        return -2;
     }
 
     /* ADC_ConfigChannel ORs CHSEL in this SDK, so select one channel explicitly. */
@@ -79,7 +99,7 @@ uint16_t BSP_Adc_ReadRaw(BSP_AdcInput_T input)
     ADC_ClearStatusFlag(ADC_FLAG_CC);
     ADC_StartConversion();
 
-    timeout = 100000U;
+    timeout = BSP_ADC_CONVERSION_TIMEOUT;
     while ((ADC_ReadStatusFlag(ADC_FLAG_CC) == RESET) && (timeout > 0U))
     {
         timeout--;
@@ -87,15 +107,61 @@ uint16_t BSP_Adc_ReadRaw(BSP_AdcInput_T input)
 
     if (timeout == 0U)
     {
-        return 0U;
+        return -3;
     }
-    return (uint16_t)ADC_ReadConversionValue();
+
+    *raw = (uint16_t)ADC_ReadConversionValue();
+    return 0;
+}
+
+int BSP_Adc_ReadAverageRaw(BSP_AdcInput_T input, uint8_t samples, uint16_t *raw)
+{
+    uint32_t sum;
+    uint16_t sample;
+    uint8_t index;
+    int result;
+
+    if ((raw == 0) || (samples == 0U))
+    {
+        return -1;
+    }
+
+    sum = 0U;
+    for (index = 0U; index < samples; index++)
+    {
+        result = BSP_Adc_ReadRawChecked(input, &sample);
+        if (result != 0)
+        {
+            return result;
+        }
+        sum += sample;
+    }
+
+    *raw = (uint16_t)((sum + ((uint32_t)samples / 2U)) / (uint32_t)samples);
+    return 0;
+}
+
+uint16_t BSP_Adc_ReadRaw(BSP_AdcInput_T input)
+{
+    uint16_t raw;
+
+    raw = 0U;
+    (void)BSP_Adc_ReadRawChecked(input, &raw);
+    return raw;
+}
+
+uint32_t BSP_Adc_RawToMillivolts(uint16_t raw, uint32_t vdda_mv)
+{
+    return (((uint32_t)raw * vdda_mv) + 2047U) / 4095U;
 }
 
 uint32_t BSP_Adc_ReadMillivolts(BSP_AdcInput_T input, uint32_t vdda_mv)
 {
-    uint32_t raw;
+    uint16_t raw;
 
-    raw = BSP_Adc_ReadRaw(input);
-    return (raw * vdda_mv) / 4095U;
+    if (BSP_Adc_ReadRawChecked(input, &raw) != 0)
+    {
+        return 0U;
+    }
+    return BSP_Adc_RawToMillivolts(raw, vdda_mv);
 }

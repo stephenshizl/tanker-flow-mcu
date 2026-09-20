@@ -18,6 +18,7 @@
 #define FLOW_RX_RING_SIZE        (512U)
 #define FLOW_FRAME_QUEUE_SIZE    (8U)
 #define FLOW_T35_TIMER_US        (4100U)
+#define UART_STATS_PORT_COUNT     (6U)
 
 static uint8_t g_debug_storage[DEBUG_RX_RING_SIZE];
 static uint8_t g_bt_storage[BT_RX_RING_SIZE];
@@ -39,6 +40,10 @@ static volatile uint16_t g_flow_frame_lengths[FLOW_FRAME_QUEUE_SIZE];
 static volatile uint8_t g_flow_frame_head;
 static volatile uint8_t g_flow_frame_tail;
 static volatile uint32_t g_flow_frame_overflow;
+
+static volatile uint32_t g_uart_rx_bytes[UART_STATS_PORT_COUNT];
+static volatile uint32_t g_uart_idle_events[UART_STATS_PORT_COUNT];
+static volatile uint32_t g_uart_dma_full_events[UART_STATS_PORT_COUNT];
 
 static void Uart_ConfigPins(GPIO_T *tx_port,
                             uint16_t tx_pin,
@@ -113,7 +118,7 @@ static void Dma_ConfigRx(DMA_CHANNEL_T *channel,
     USART_EnableDMA(usart, USART_DMA_REQUEST_RX);
 }
 
-static void Dma_FlushToRing(DMA_CHANNEL_T *channel,
+static uint16_t Dma_FlushToRing(DMA_CHANNEL_T *channel,
                             uint8_t *dma_buffer,
                             uint16_t dma_size,
                             uint32_t transfer_flag,
@@ -136,6 +141,7 @@ static void Dma_FlushToRing(DMA_CHANNEL_T *channel,
     DMA_ClearIntFlag(transfer_flag);
     DMA_SetDataNumber(channel, dma_size);
     DMA_Enable(channel);
+    return received;
 }
 
 static void Flow_RestartGapTimer(void)
@@ -198,6 +204,7 @@ static USART_T *Uart_GetPeripheral(BSP_UartPort_T port)
 void BSP_Uart_Init(void)
 {
     TMR_TimeBase_T timer_config;
+    uint8_t port_index;
 
     BSP_RingBuffer_Init(&g_debug_rb, g_debug_storage, DEBUG_RX_RING_SIZE);
     BSP_RingBuffer_Init(&g_bt_rb, g_bt_storage, BT_RX_RING_SIZE);
@@ -210,6 +217,13 @@ void BSP_Uart_Init(void)
     g_flow_frame_head = 0U;
     g_flow_frame_tail = 0U;
     g_flow_frame_overflow = 0U;
+
+    for (port_index = 0U; port_index < UART_STATS_PORT_COUNT; port_index++)
+    {
+        g_uart_rx_bytes[port_index] = 0U;
+        g_uart_idle_events[port_index] = 0U;
+        g_uart_dma_full_events[port_index] = 0U;
+    }
 
     RCM_EnableAHBPeriphClock(RCM_AHB_PERIPH_GPIOA | RCM_AHB_PERIPH_GPIOB | RCM_AHB_PERIPH_DMA1);
     RCM_EnableAPB1PeriphClock(RCM_APB1_PERIPH_USART2 |
@@ -330,6 +344,32 @@ uint32_t BSP_Uart_OverflowCount(BSP_UartPort_T port)
     return BSP_RingBuffer_OverflowCount(ring);
 }
 
+void BSP_Uart_GetStats(BSP_UartPort_T port, BSP_UartStats_T *stats)
+{
+    uint8_t index;
+
+    if (stats == 0)
+    {
+        return;
+    }
+
+    stats->rx_bytes = 0U;
+    stats->idle_events = 0U;
+    stats->dma_full_events = 0U;
+    stats->ring_overflow = 0U;
+
+    index = (uint8_t)port;
+    if (index >= UART_STATS_PORT_COUNT)
+    {
+        return;
+    }
+
+    stats->rx_bytes = g_uart_rx_bytes[index];
+    stats->idle_events = g_uart_idle_events[index];
+    stats->dma_full_events = g_uart_dma_full_events[index];
+    stats->ring_overflow = BSP_Uart_OverflowCount(port);
+}
+
 int BSP_Flow_ReadFrame(uint8_t *data, uint16_t capacity)
 {
     uint16_t frame_length;
@@ -369,6 +409,7 @@ void BSP_Uart_Usart1IRQHandler(void)
 {
     if (USART_ReadIntFlag(USART1, USART_INT_FLAG_RXBNE) == SET)
     {
+        g_uart_rx_bytes[BSP_UART_DEBUG]++;
         (void)BSP_RingBuffer_Push(&g_debug_rb, (uint8_t)USART_RxData(USART1));
     }
 }
@@ -377,6 +418,7 @@ void BSP_Uart_Usart2IRQHandler(void)
 {
     if (USART_ReadIntFlag(USART2, USART_INT_FLAG_RXBNE) == SET)
     {
+        g_uart_rx_bytes[BSP_UART_BLUETOOTH]++;
         (void)BSP_RingBuffer_Push(&g_bt_rb, (uint8_t)USART_RxData(USART2));
     }
 }
@@ -384,24 +426,30 @@ void BSP_Uart_Usart2IRQHandler(void)
 void BSP_Uart_Usart3To6IRQHandler(void)
 {
     uint8_t byte;
+    uint16_t received;
 
     if (USART_ReadIntFlag(USART3, USART_INT_FLAG_IDLE) == SET)
     {
         USART_ClearStatusFlag(USART3, USART_FLAG_IDLEF);
-        Dma_FlushToRing(DMA1_CHANNEL_3, g_modem_dma, MODEM_DMA_SIZE,
-                       DMA1_INT_FLAG_TF3, &g_modem_rb);
+        received = Dma_FlushToRing(DMA1_CHANNEL_3, g_modem_dma, MODEM_DMA_SIZE,
+                                   DMA1_INT_FLAG_TF3, &g_modem_rb);
+        g_uart_idle_events[BSP_UART_4G]++;
+        g_uart_rx_bytes[BSP_UART_4G] += received;
     }
 
     if (USART_ReadIntFlag(USART4, USART_INT_FLAG_IDLE) == SET)
     {
         USART_ClearStatusFlag(USART4, USART_FLAG_IDLEF);
-        Dma_FlushToRing(DMA1_CHANNEL_5, g_gnss_dma, GNSS_DMA_SIZE,
-                       DMA1_INT_FLAG_TF5, &g_gnss_rb);
+        received = Dma_FlushToRing(DMA1_CHANNEL_5, g_gnss_dma, GNSS_DMA_SIZE,
+                                   DMA1_INT_FLAG_TF5, &g_gnss_rb);
+        g_uart_idle_events[BSP_UART_GNSS]++;
+        g_uart_rx_bytes[BSP_UART_GNSS] += received;
     }
 
     if (USART_ReadIntFlag(USART5, USART_INT_FLAG_RXBNE) == SET)
     {
         byte = (uint8_t)USART_RxData(USART5);
+        g_uart_rx_bytes[BSP_UART_FLOW]++;
         if (BSP_RingBuffer_Push(&g_flow_rb, byte) != 0U)
         {
             if (g_flow_current_length < 0xFFFFU)
@@ -419,19 +467,27 @@ void BSP_Uart_Usart3To6IRQHandler(void)
 
 void BSP_Uart_DmaCh2To3IRQHandler(void)
 {
+    uint16_t received;
+
     if (DMA_ReadIntFlag(DMA1_INT_FLAG_TF3) == SET)
     {
-        Dma_FlushToRing(DMA1_CHANNEL_3, g_modem_dma, MODEM_DMA_SIZE,
-                       DMA1_INT_FLAG_TF3, &g_modem_rb);
+        received = Dma_FlushToRing(DMA1_CHANNEL_3, g_modem_dma, MODEM_DMA_SIZE,
+                                   DMA1_INT_FLAG_TF3, &g_modem_rb);
+        g_uart_dma_full_events[BSP_UART_4G]++;
+        g_uart_rx_bytes[BSP_UART_4G] += received;
     }
 }
 
 void BSP_Uart_DmaCh4To5IRQHandler(void)
 {
+    uint16_t received;
+
     if (DMA_ReadIntFlag(DMA1_INT_FLAG_TF5) == SET)
     {
-        Dma_FlushToRing(DMA1_CHANNEL_5, g_gnss_dma, GNSS_DMA_SIZE,
-                       DMA1_INT_FLAG_TF5, &g_gnss_rb);
+        received = Dma_FlushToRing(DMA1_CHANNEL_5, g_gnss_dma, GNSS_DMA_SIZE,
+                                   DMA1_INT_FLAG_TF5, &g_gnss_rb);
+        g_uart_dma_full_events[BSP_UART_GNSS]++;
+        g_uart_rx_bytes[BSP_UART_GNSS] += received;
     }
 }
 

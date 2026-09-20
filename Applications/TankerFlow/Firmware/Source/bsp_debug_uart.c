@@ -61,3 +61,37 @@ void BSP_DebugUart_Write(const char *text)
         ++text;
     }
 }
+
+void BSP_DebugUart_WriteUInt32(uint32_t value)
+{
+    char buffer[10];
+    uint8_t length;
+
+    if (value == 0U)
+    {
+        BSP_DebugUart_WriteByte((uint8_t)'0');
+        return;
+    }
+
+    length = 0U;
+    while ((value > 0U) && (length < (uint8_t)sizeof(buffer)))
+    {
+        buffer[length] = (char)('0' + (value % 10U));
+        value /= 10U;
+        length++;
+    }
+
+    while (length > 0U)
+    {
+        length--;
+        BSP_DebugUart_WriteByte((uint8_t)buffer[length]);
+    }
+}
+
+void BSP_DebugUart_WriteHex8(uint8_t value)
+{
+    static const char hex[] = "0123456789ABCDEF";
+
+    BSP_DebugUart_WriteByte((uint8_t)hex[(value >> 4U) & 0x0FU]);
+    BSP_DebugUart_WriteByte((uint8_t)hex[value & 0x0FU]);
+}

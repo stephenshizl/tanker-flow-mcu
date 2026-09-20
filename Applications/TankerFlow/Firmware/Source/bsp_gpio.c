@@ -1,8 +1,14 @@
 #include "bsp_gpio.h"
 
 #include "board_pinmap.h"
+#include "apm32f0xx_eint.h"
 #include "apm32f0xx_gpio.h"
+#include "apm32f0xx_misc.h"
 #include "apm32f0xx_rcm.h"
+#include "apm32f0xx_syscfg.h"
+
+static volatile uint32_t g_charger_interrupt_count;
+static volatile uint8_t g_charger_interrupt_pending;
 
 static void GPIO_ConfigOutput(GPIO_T *port, uint16_t pin, uint8_t initial_high)
 {
@@ -39,9 +45,28 @@ static void GPIO_ConfigInput(GPIO_T *port, uint16_t pin, GPIO_PUPD_T pull)
     GPIO_Config(port, &config);
 }
 
+static void GPIO_ConfigChargerInterrupt(void)
+{
+    EINT_Config_T eint_config;
+
+    g_charger_interrupt_count = 0U;
+    g_charger_interrupt_pending = 0U;
+
+    SYSCFG_EINTLine(SYSCFG_PORT_GPIOA, SYSCFG_PIN_11);
+    EINT_ConfigStructInit(&eint_config);
+    eint_config.line = EINT_LINE11;
+    eint_config.mode = EINT_MODE_INTERRUPT;
+    eint_config.trigger = EINT_TRIGGER_FALLING;
+    eint_config.lineCmd = ENABLE;
+    EINT_Config(&eint_config);
+    EINT_ClearIntFlag(EINT_LINE11);
+    NVIC_EnableIRQRequest(EINT4_15_IRQn, 3U);
+}
+
 void BSP_BoardGpio_Init(void)
 {
     RCM_EnableAHBPeriphClock(RCM_AHB_PERIPH_GPIOA | RCM_AHB_PERIPH_GPIOB);
+    RCM_EnableAPB2PeriphClock(RCM_APB2_PERIPH_SYSCFG);
 
     /* Safe power-up states: peripherals off, reset lines released where direct. */
     GPIO_ConfigOutput(BOARD_4G_RST_PORT, BOARD_4G_RST_PIN, 0U);
@@ -62,6 +87,7 @@ void BSP_BoardGpio_Init(void)
     /* SGM41511 nCE is active-low. Default high keeps charging disabled during bring-up. */
     GPIO_ConfigOutput(BOARD_CHARGE_EN_PORT, BOARD_CHARGE_EN_PIN, 1U);
     GPIO_ConfigInput(BOARD_CHARGE_INT_PORT, BOARD_CHARGE_INT_PIN, GPIO_PUPD_PU);
+    GPIO_ConfigChargerInterrupt();
 }
 
 void BSP_4G_ResetAssert(void)       { GPIO_SetBit(BOARD_4G_RST_PORT, BOARD_4G_RST_PIN); }
@@ -115,4 +141,31 @@ void BSP_Charger_SetEnable(uint8_t enable)
 uint8_t BSP_ChargerInterrupt_Read(void)
 {
     return GPIO_ReadInputBit(BOARD_CHARGE_INT_PORT, BOARD_CHARGE_INT_PIN);
+}
+
+uint32_t BSP_ChargerInterrupt_Count(void)
+{
+    return g_charger_interrupt_count;
+}
+
+uint8_t BSP_ChargerInterrupt_Consume(void)
+{
+    uint8_t pending;
+
+    /* Avoid losing a new nINT edge between the foreground read and clear. */
+    NVIC_DisableIRQRequest(EINT4_15_IRQn);
+    pending = g_charger_interrupt_pending;
+    g_charger_interrupt_pending = 0U;
+    NVIC_EnableIRQRequest(EINT4_15_IRQn, 3U);
+    return pending;
+}
+
+void BSP_ChargerInterrupt_IRQHandler(void)
+{
+    if (EINT_ReadIntFlag(EINT_LINE11) == SET)
+    {
+        EINT_ClearIntFlag(EINT_LINE11);
+        g_charger_interrupt_count++;
+        g_charger_interrupt_pending = 1U;
+    }
 }

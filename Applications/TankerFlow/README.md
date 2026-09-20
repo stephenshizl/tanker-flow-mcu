@@ -1,8 +1,8 @@
 # TankerFlow APM32F030RC Firmware
 
-## Phase-2 baseline: peripheral BSP
+## Phase-3A baseline: BSP self-test + charger driver + ADC observability
 
-This project is the second bring-up step for the tanker loading/unloading flow terminal.  The scope is deliberately limited to MCU BSP and peripheral access.  Bootloader, OTA/FOTA, 4G AT state machine, NMEA parser, Bluetooth business protocol, Modbus register parser, server protocol and application state machine are **not** included in this step.
+This step builds on the reviewed Phase-2 peripheral BSP.  The scope remains deliberately small: add a board self-test/diagnostic layer, a minimal SGM41511 charger driver, charger nINT handling, ADC checked/averaged/pin-voltage APIs, and UART receive statistics.  Bootloader, OTA/FOTA, 4G AT state machine, GNSS NMEA parsing, Bluetooth business protocol, flowmeter Modbus register parsing, server protocol and application state machine are still out of scope.
 
 ### Build target
 
@@ -10,7 +10,7 @@ This project is the second bring-up step for the tanker loading/unloading flow t
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.2.0-bsp`
+- App version: `0.3.0-phase3a`
 
 ### Frozen board mapping
 
@@ -24,49 +24,75 @@ This project is the second bring-up step for the tanker loading/unloading flow t
 | Flowmeter RS485 | USART5 PB3/PB4 | 9600 8E1, RXNE IRQ + TMR16 Modbus T3.5 |
 | RS485 / flow control | TXEN PB5, RXEN PA15, FLOW_EN PB2 | raw GPIO APIs |
 | Flow direction / connector | DIR_FLOW PB14, DET_INSERT PB15 | inputs |
-| SGM41511 | I2C1 PB8/PB9, CHARGE_INT PA11, CHARGE_EN PA12 | 100 kHz; nCE active low |
-| ADC | PA6=ADC_IN6, PA7=ADC_IN7, PB0=ADC_IN8, PB1=ADC_IN9 | 12-bit raw read |
+| SGM41511 | I2C1 PB8/PB9, CHARGE_INT PA11, CHARGE_EN PA12 | 100 kHz; nCE active low; nINT falling-edge IRQ |
+| ADC | PA6=ADC_IN6, PA7=ADC_IN7, PB0=ADC_IN8, PB1=ADC_IN9 | 12-bit checked/average/raw read |
 
-`Firmware/Include/board_pinmap.h` is the only source of truth for physical pin assignments.
+`Firmware/Include/board_pinmap.h` remains the only source of truth for physical pin assignments.
 
-### BSP modules
+### Phase-3A modules
 
-- `bsp_gpio.*`: external power/reset/wakeup/RS485/charger control and input GPIO.
-- `bsp_uart.*`: USART1..5, IRQ RX, DMA+IDLE RX, Modbus T3.5 frame boundary.
-- `bsp_ring_buffer.*`: ISR producer / foreground consumer byte rings.
-- `bsp_i2c.*`: I2C1 blocking register access and SGM41511 raw register wrappers.
-- `bsp_adc.*`: ADC_IN6..ADC_IN9 raw 12-bit access.
-- `bsp_peripherals.*`: single BSP initialization entry point.
-- `apm32f0xx_int.c`: IRQ routing only; protocol parsing stays out of ISR/BSP.
+- `bsp_selftest.*`: one-shot startup diagnostics for charger, ADC and UART receive counters.
+- `Drivers/SGM41511/sgm41511.*`: minimal charger register driver.
+  - probe REG0B and verify SGM41511 part ID;
+  - enable/disable charging through both CHG_CONFIG and board nCE;
+  - set/read input current limit (IINDPM);
+  - set/read fast-charge current (ICHG);
+  - read REG08/REG0A status;
+  - read REG09 twice so latched-history and current fault are separated.
+- `bsp_gpio.*`: PA11 charger nINT falling-edge interrupt only sets foreground flags/counters; no I2C operation is done in ISR context.
+- `bsp_adc.*`: readiness state, checked raw read, N-sample average and ADC-pin millivolt conversion.
+- `bsp_uart.*`: RX byte, DMA-IDLE, DMA-full and ring-overflow diagnostics for each UART.
+- `bsp_i2c.*`: explicit error codes/error counter and transfer-abort cleanup on NACK/timeout/bus errors.
 
-### Power-up safety policy
+### ADC voltage rule
 
-`BSP_BoardGpio_Init()` leaves externally powered modules in conservative states: Bluetooth/GNSS/flow power off, 4G reset and PWRKEY controls inactive, charger disabled (`nCE` high), RS485 control pins low.  Higher-level bring-up code can then enable one peripheral at a time.
-
-### Expected boot log
+Phase-3A reports **ADC pin voltage only**:
 
 ```text
-[BOOT] tanker-flow-mcu 0.2.0-bsp
-[BSP ] APM32F030xC clock=48MHz tick=1ms
-[UART] USART1 debug  PA9/PA10   115200 8N1 IRQ
-[UART] USART2 BT     PA2/PA3     115200 8N1 IRQ
-[UART] USART3 4G     PB10/PB11   115200 8N1 DMA+IDLE
-[UART] USART4 GNSS   PA0/PA1       9600 8N1 DMA+IDLE
-[UART] USART5 FLOW   PB3/PB4       9600 8E1 IRQ+TMR16
-[I2C ] I2C1 PB8/PB9 100kHz, SGM41511 raw register API
-[ADC ] ADC_IN6..9 raw 12-bit channels initialized
-[GPIO] external power/control pins initialized to safe states
-[PASS] phase-2 peripheral BSP initialized
+pin_mV = raw * VDDA_mV / 4095
 ```
 
-### Recommended bench order
+The startup self-test uses nominal `VDDA=3300mV`.  It intentionally does **not** convert ADC_IN6..ADC_IN9 into battery/input/system voltages because the final external resistor-divider ratios have not been frozen in software.  Do not add guessed divider coefficients.  When the schematic ratios are confirmed, board-level engineering-unit conversion will be added as a separate reviewed change.
 
-1. Verify the boot log and 1-second heartbeat on USART1.
-2. Scope every control GPIO in its safe state, then toggle one peripheral at a time through the BSP API.
-3. Bluetooth: enable PA8 and verify USART2 RX/TX at 115200.
-4. 4G: verify PA4/PA5/PB12/PB13 and USART3 DMA+IDLE reception before adding the AT state machine.
-5. GNSS: enable PB7, release PB6 reset and confirm NMEA bytes enter the USART4 ring.
-6. Flowmeter: enable the flow supply, confirm RS485 control polarity on the real board, then verify USART5 8E1 and T3.5 frame boundaries.  The BSP intentionally exposes TXEN/RXEN as raw pin-level APIs until that polarity is bench-confirmed.
-7. Read SGM41511 registers through the I2C raw API and read ADC_IN6..9 raw values.
+### SGM41511 safety rule
 
-Do not add Bootloader/OTA or business protocols until this BSP baseline is reviewed and the board-level tests above pass.
+The BSP power-up state keeps `CHARGE_EN/nCE` high, so charging remains disabled during bring-up.  The startup self-test only reads charger identification/status/current settings and does not silently enable charging or overwrite charge parameters.
+
+The dedicated SGM41511 APIs exist for later controlled bench tests.  Charging is enabled only if both the IC `CHG_CONFIG` bit is set and the board nCE pin is driven low.
+
+### Expected Phase-3A boot diagnostics
+
+Values depend on the real board; an attached charger should produce a REG0B part number of `2` with the SGMPART bit set.
+
+```text
+[BOOT] tanker-flow-mcu 0.3.0-phase3a
+...
+[PASS] phase-3A BSP/driver initialization complete
+[SELF] phase-3A peripheral self-test start
+[SELF][GPIO] CHG_INT level=... irq_count=...; charger nCE remains disabled by BSP safe state
+[SELF][CHG ] REG0B=0x.. PN=2 REV=.. device=SGM41511 PASS
+[SELF][CHG ] REG08=0x.. REG0A=0x.. VBUS=.. CHG=.. PG=.. VBUS_GD=..
+[SELF][CHG ] FAULT latched=0x.. current=0x..
+[SELF][CHG ] IINDPM=...mA ICHG=...mA
+[SELF][ADC ] ADC_IN6 raw=... pin_mv=...
+[SELF][ADC ] ADC_IN7 raw=... pin_mv=...
+[SELF][ADC ] ADC_IN8 raw=... pin_mv=...
+[SELF][ADC ] ADC_IN9 raw=... pin_mv=...
+[SELF][UART] ...
+[SELF] phase-3A result=PASS
+```
+
+If SGM41511 is absent, I2C wiring/power is wrong, or ADC initialization fails, self-test reports `FAIL` but deliberately continues into the 1-second heartbeat loop so the board remains observable for bench diagnosis.
+
+### Recommended Phase-3A bench order
+
+1. Clean/Rebuild the `APM32F030RC` target and verify the Phase-3A boot log on USART1.
+2. Confirm PA12 (`CHARGE_EN/nCE`) stays high after reset; Phase-3A must not automatically start charging.
+3. Confirm I2C1 PB8/PB9 waveforms at 100 kHz while the startup self-test reads SGM41511.
+4. Verify REG0B identifies the SGM41511.  Then check REG08/REG0A and the two REG09 reads against the charger/input state.
+5. Trigger/remove charger input and confirm PA11 nINT count changes; ISR must remain short and no I2C transaction may occur inside the interrupt handler.
+6. Measure PA6/PA7/PB0/PB1 with a multimeter and compare with reported `pin_mv` before adding any divider scaling.
+7. Feed known serial data to each UART and use `BSP_Uart_GetStats()` to distinguish no-data, IDLE/DMA behavior and ring overflow.
+8. Only after Phase-3A hardware checks pass should Phase-3B add the GNSS NMEA receive/parser layer.
+
+Do not add Bootloader/OTA or business protocols in this phase.

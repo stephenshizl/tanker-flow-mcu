@@ -1,5 +1,6 @@
 #include "apm32f0xx_int.h"
 
+#include "bsp_gpio.h"
 #include "bsp_tick.h"
 #include "bsp_uart.h"
 
@@ -25,6 +26,11 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
     BSP_Tick_Increment();
+}
+
+void EINT4_15_IRQHandler(void)
+{
+    BSP_ChargerInterrupt_IRQHandler();
 }
 
 void DMA1_CH2_3_IRQHandler(void)

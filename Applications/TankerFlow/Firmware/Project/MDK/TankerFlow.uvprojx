@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>BOARD_APM32F030_MINI,APM32F030xC</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include</IncludePath>
+              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -712,6 +712,16 @@
               <FileName>bsp_peripherals.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_selftest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Source\bsp_selftest.c</FilePath>
+            </File>
+            <File>
+              <FileName>sgm41511.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
           </Files>
         </Group>

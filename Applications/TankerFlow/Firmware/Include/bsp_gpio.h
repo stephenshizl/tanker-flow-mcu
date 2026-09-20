@@ -27,5 +27,8 @@ uint8_t BSP_InsertDetect_Read(void);
 
 void BSP_Charger_SetEnable(uint8_t enable);
 uint8_t BSP_ChargerInterrupt_Read(void);
+uint32_t BSP_ChargerInterrupt_Count(void);
+uint8_t BSP_ChargerInterrupt_Consume(void);
+void BSP_ChargerInterrupt_IRQHandler(void);
 
 #endif /* BSP_GPIO_H */
