@@ -1474,6 +1474,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
             </File>
+            <File>
+              <FileName>at_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>modem_4g.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -2205,6 +2215,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
             </File>
+            <File>
+              <FileName>at_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>modem_4g.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -2935,6 +2955,16 @@
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+            </File>
+            <File>
+              <FileName>at_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>modem_4g.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
             </File>
           </Files>
         </Group>
