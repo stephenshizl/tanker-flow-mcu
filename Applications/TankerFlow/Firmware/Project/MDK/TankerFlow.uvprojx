@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>BOARD_APM32F030_MINI,APM32F030xC</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS</IncludePath>
+              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS;..\..\Drivers\Modem</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -732,6 +732,16 @@
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+            </File>
+            <File>
+              <FileName>at_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>modem_4g.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
             </File>
           </Files>
         </Group>

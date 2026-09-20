@@ -1,8 +1,8 @@
 # TankerFlow APM32F030RC Firmware
 
-## Phase-3B baseline: GNSS NMEA stream parser on the Phase-3A BSP
+## Phase-3C baseline: 4G AT core on the Phase-3B GNSS/BSP baseline
 
-Phase-3B builds directly on the committed Phase-3A BSP.  The scope is deliberately limited to the GNSS software receive path: USART4 DMA+IDLE ring-buffer data is consumed in foreground context, framed into NMEA sentences, checksum-validated, and minimally decoded for RMC/GGA.  Bootloader, OTA/FOTA, 4G AT state machine, Bluetooth business protocol, flowmeter Modbus register parsing, server protocol and application state machine remain out of scope.
+Phase-3C builds directly on the committed Phase-3B baseline.  The scope is deliberately limited to a reusable, non-blocking 4G AT command core on top of the existing USART3 DMA+IDLE receive path.  It adds command transmission, line framing, echo suppression, final-result matching, response/URC separation, timeout handling and host-side mock tests.  Bootloader, OTA/FOTA, TCP/MQTT sessions, MC610 power-on sequencing, Bluetooth business protocol, flowmeter Modbus register parsing, server protocol and application state machine remain out of scope.
 
 ### Build target
 
@@ -10,7 +10,7 @@ Phase-3B builds directly on the committed Phase-3A BSP.  The scope is deliberate
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.1-phase3b`
+- App version: `0.3.2-phase3c`
 
 ### Frozen board mapping
 
@@ -29,6 +29,28 @@ Phase-3B builds directly on the committed Phase-3A BSP.  The scope is deliberate
 
 `Firmware/Include/board_pinmap.h` remains the only source of truth for physical pin assignments.
 
+
+
+### Phase-3C 4G AT core
+
+- `Drivers/Modem/at_core.*`: transport-independent asynchronous AT engine.
+  - fixed static storage only; no `malloc`;
+  - accepts arbitrary RX chunks from DMA/ring-buffer foreground processing;
+  - frames CR/LF AT lines, handles split/concatenated responses and recovers after overlength lines;
+  - suppresses command echo and recognizes `OK`, `ERROR`, `+CME ERROR`, `+CMS ERROR` and `NO CARRIER`;
+  - supports a per-command response prefix so query responses such as `+CEREG:` are not misclassified as URCs;
+  - supports a configurable success token for later prompt-based commands;
+  - uses wrap-safe millisecond timeout checks and never busy-waits for a response.
+- `Drivers/Modem/modem_4g.*`: TankerFlow adapter for USART3 and SysTick.
+  - consumes `BSP_UART_4G` in the foreground; ISR/DMA code remains protocol-free;
+  - classifies MC610-relevant unsolicited lines including `+MIPRTCP`, `+MIPSTAT`, network registration URCs and common boot indications;
+  - records lightweight URC counters and a truncated last-URC snapshot for bench diagnostics;
+  - deliberately does not start a power-on sequence or issue AT commands automatically at boot.
+- `Firmware/Tests/at_core_host_test.c`: host-side regression vectors for echo/no-echo responses, response-prefix matching, URC interleaving, errors, timeout, TX failure, custom success token, oversized-line recovery and an approximately 1 KB `+MIPRTCP` URC.
+
+The AT receive line capacity is intentionally sized to 1200 bytes so the core can carry the project's later MC610 hex-mode `+MIPRTCP` receive indication without immediately forcing a second framing design.  Phase-3C only transports/classifies this URC; TCP payload decoding and business framing are deferred.
+
+This phase keeps the useful separation from the earlier 4G relay project's `dtu_at.c` (send command, match result, keep background processing alive) but replaces its single blocking RX snapshot with a non-blocking line-oriented core suitable for the TankerFlow main loop.
 
 ### Phase-3B GNSS parser
 
@@ -116,15 +138,18 @@ If SGM41511 is absent, I2C wiring/power is wrong, or ADC initialization fails, s
 7. Feed known serial data to each UART and use `BSP_Uart_GetStats()` to distinguish no-data, IDLE/DMA behavior and ring overflow.
 8. Phase-3B can be host-tested without hardware.  When a board is available, feed/observe real ATGM336H NMEA on USART4 and compare `GNSS_Stats_T` with the UART DMA/IDLE counters.
 
-### Phase-3B host validation
+### Phase-3B / Phase-3C host validation
 
 From `Applications/TankerFlow/Firmware` on a host with GCC:
 
 ```text
 gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/GNSS Tests/gnss_host_test.c Drivers/GNSS/gnss.c Drivers/GNSS/nmea_parser.c -o gnss_host_test
 ./gnss_host_test
+
+gcc -std=c99 -Wall -Wextra -Werror -IDrivers/Modem Tests/at_core_host_test.c Drivers/Modem/at_core.c -o at_core_host_test
+./at_core_host_test
 ```
 
-Expected final line: `GNSS host tests: PASS`.
+Expected final lines: `GNSS host tests: PASS` and `AT core host tests: PASS`.
 
-Do not add Bootloader/OTA, GNSS vendor configuration commands, coordinate-map conversion, 4G upload or other business protocols in this phase.
+Do not add Bootloader/OTA, TCP/MQTT session logic, automatic MC610 power sequencing, server upload or other business protocols in this phase.

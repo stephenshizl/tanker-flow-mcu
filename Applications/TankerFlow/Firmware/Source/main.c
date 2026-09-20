@@ -6,6 +6,7 @@
 #include "bsp_selftest.h"
 #include "bsp_tick.h"
 #include "gnss.h"
+#include "modem_4g.h"
 
 int main(void)
 {
@@ -21,6 +22,7 @@ int main(void)
 
     BSP_Peripherals_Init();
     GNSS_Init();
+    Modem4G_Init();
 
     BSP_DebugUart_Write("[UART] USART2 BT     PA2/PA3     115200 8N1 IRQ\r\n");
     BSP_DebugUart_Write("[UART] USART3 4G     PB10/PB11   115200 8N1 DMA+IDLE\r\n");
@@ -30,7 +32,8 @@ int main(void)
     BSP_DebugUart_Write("[ADC ] ADC_IN6..9 raw/average/pin-mV API initialized\r\n");
     BSP_DebugUart_Write("[GPIO] CHARGE_INT falling-edge IRQ; external controls remain safe\r\n");
     BSP_DebugUart_Write("[GNSS] NMEA stream parser enabled: RMC/GGA, integer coordinates\r\n");
-    BSP_DebugUart_Write("[PASS] phase-3B GNSS parser initialization complete\r\n");
+    BSP_DebugUart_Write("[4G  ] AT core enabled: async command/result + URC separation\r\n");
+    BSP_DebugUart_Write("[PASS] phase-3C 4G AT core initialization complete\r\n");
 
     (void)BSP_SelfTest_Run();
 
@@ -38,6 +41,7 @@ int main(void)
     while (1)
     {
         GNSS_Process();
+        Modem4G_Process();
 
         if (BSP_ChargerInterrupt_Consume() != 0U)
         {
