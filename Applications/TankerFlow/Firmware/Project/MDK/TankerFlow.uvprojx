@@ -1454,6 +1454,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+            <File>
+              <FileName>gnss.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+            </File>
+            <File>
+              <FileName>nmea_parser.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -2175,6 +2185,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+            <File>
+              <FileName>gnss.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+            </File>
+            <File>
+              <FileName>nmea_parser.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
@@ -2895,6 +2915,16 @@
               <FileName>sgm41511.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
+            </File>
+            <File>
+              <FileName>gnss.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+            </File>
+            <File>
+              <FileName>nmea_parser.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
             </File>
           </Files>
         </Group>
