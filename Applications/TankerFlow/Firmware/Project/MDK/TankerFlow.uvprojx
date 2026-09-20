@@ -726,22 +726,22 @@
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+              <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
             <File>
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
             <File>
               <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1467,22 +1467,22 @@
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+              <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
             <File>
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
             <File>
               <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2208,22 +2208,22 @@
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+              <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
             <File>
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
             <File>
               <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2949,22 +2949,22 @@
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\gnss.c</FilePath>
+              <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
             <File>
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\GNSS\nmea_parser.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\at_core.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
             <File>
               <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\modem_4g.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
           </Files>
         </Group>
