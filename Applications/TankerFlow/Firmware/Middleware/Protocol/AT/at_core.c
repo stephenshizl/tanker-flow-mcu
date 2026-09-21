@@ -122,36 +122,74 @@ static uint8_t AtCore_LineStartsWith(const char *line, uint16_t length, const ch
     return AtCore_BytesEqual(line, prefix, prefix_length);
 }
 
-static uint8_t AtCore_IsErrorLine(const char *line, uint16_t length)
+static AT_CoreFinalCode_T AtCore_ParseFinalCode(const char *line, uint16_t length)
 {
+    if (AtCore_LineEquals(line, length, "OK") != 0U)
+    {
+        return AT_CORE_FINAL_OK;
+    }
+    if ((AtCore_LineEquals(line, length, "CONNECT") != 0U) ||
+        (AtCore_LineStartsWith(line, length, "CONNECT ") != 0U))
+    {
+        return AT_CORE_FINAL_CONNECT;
+    }
     if (AtCore_LineEquals(line, length, "ERROR") != 0U)
     {
-        return 1U;
+        return AT_CORE_FINAL_ERROR;
     }
     if (AtCore_LineStartsWith(line, length, "+CME ERROR") != 0U)
     {
-        return 1U;
+        return AT_CORE_FINAL_CME_ERROR;
     }
     if (AtCore_LineStartsWith(line, length, "+CMS ERROR") != 0U)
     {
-        return 1U;
+        return AT_CORE_FINAL_CMS_ERROR;
     }
-    if ((AtCore_LineEquals(line, length, "NO CARRIER") != 0U) ||
-        (AtCore_LineEquals(line, length, "BUSY") != 0U) ||
-        (AtCore_LineEquals(line, length, "NO ANSWER") != 0U) ||
-        (AtCore_LineEquals(line, length, "NO DIALTONE") != 0U))
+    if (AtCore_LineEquals(line, length, "NO CARRIER") != 0U)
     {
-        return 1U;
+        return AT_CORE_FINAL_NO_CARRIER;
     }
-    return 0U;
+    if (AtCore_LineEquals(line, length, "NO DIALTONE") != 0U)
+    {
+        return AT_CORE_FINAL_NO_DIALTONE;
+    }
+    if (AtCore_LineEquals(line, length, "BUSY") != 0U)
+    {
+        return AT_CORE_FINAL_BUSY;
+    }
+    if (AtCore_LineEquals(line, length, "NO ANSWER") != 0U)
+    {
+        return AT_CORE_FINAL_NO_ANSWER;
+    }
+    return AT_CORE_FINAL_NONE;
 }
 
-static void AtCore_Complete(AT_Core_T *core, AT_CoreResult_T result)
+static uint8_t AtCore_IsFailureFinalCode(AT_CoreFinalCode_T code)
+{
+    return ((code == AT_CORE_FINAL_ERROR) ||
+            (code == AT_CORE_FINAL_CME_ERROR) ||
+            (code == AT_CORE_FINAL_CMS_ERROR) ||
+            (code == AT_CORE_FINAL_NO_CARRIER) ||
+            (code == AT_CORE_FINAL_NO_DIALTONE) ||
+            (code == AT_CORE_FINAL_BUSY) ||
+            (code == AT_CORE_FINAL_NO_ANSWER)) ? 1U : 0U;
+}
+
+static void AtCore_Complete(AT_Core_T *core,
+                            AT_CoreResult_T result,
+                            AT_CoreFinalCode_T final_code)
 {
     core->busy = 0U;
+    core->phase = AT_CORE_PHASE_IDLE;
     core->completed_result = result;
+    if (final_code != AT_CORE_FINAL_NONE)
+    {
+        core->last_final_code = final_code;
+    }
 
-    if (result == AT_CORE_RESULT_OK)
+    if ((result == AT_CORE_RESULT_OK) ||
+        (result == AT_CORE_RESULT_PROMPT) ||
+        (result == AT_CORE_RESULT_ASYNC_EVENT))
     {
         core->stats.commands_ok++;
     }
@@ -169,6 +207,15 @@ static void AtCore_Complete(AT_Core_T *core, AT_CoreResult_T result)
     }
     else
     {
+    }
+
+    if (result == AT_CORE_RESULT_PROMPT)
+    {
+        core->stats.prompts++;
+    }
+    if (result == AT_CORE_RESULT_ASYNC_EVENT)
+    {
+        core->stats.async_completed++;
     }
 }
 
@@ -191,10 +238,100 @@ static void AtCore_HandleResponse(AT_Core_T *core, const char *line, uint16_t le
     }
 }
 
+static uint8_t AtCore_IsAsyncEvent(AT_Core_T *core, const char *line, uint16_t length)
+{
+    if ((core->transaction_type != AT_CORE_TRANSACTION_ASYNC_OK) ||
+        (core->async_match == 0))
+    {
+        return 0U;
+    }
+    return core->async_match(line, length, core->user);
+}
+
+static void AtCore_HandleAsyncEvent(AT_Core_T *core, const char *line, uint16_t length)
+{
+    /* Async execution reports are URC-shaped and remain visible to the driver. */
+    AtCore_HandleUrc(core, line, length);
+
+    if (core->phase == AT_CORE_PHASE_WAIT_ASYNC)
+    {
+        AtCore_Complete(core, AT_CORE_RESULT_ASYNC_EVENT, AT_CORE_FINAL_NONE);
+    }
+    else
+    {
+        /* Be tolerant of a fast module reporting the operation result before OK. */
+        core->async_event_seen = 1U;
+    }
+}
+
+static uint8_t AtCore_HandleFinalCode(AT_Core_T *core, AT_CoreFinalCode_T code)
+{
+    if (code == AT_CORE_FINAL_NONE)
+    {
+        return 0U;
+    }
+
+    core->last_final_code = code;
+
+    if (AtCore_IsFailureFinalCode(code) != 0U)
+    {
+        AtCore_Complete(core, AT_CORE_RESULT_ERROR, code);
+        return 1U;
+    }
+
+    /* A legacy vendor-specific success token must not be pre-empted by OK. */
+    if (core->legacy_custom_result != 0U)
+    {
+        return 0U;
+    }
+
+    if (core->transaction_type == AT_CORE_TRANSACTION_SYNC_OK)
+    {
+        if (code == AT_CORE_FINAL_OK)
+        {
+            AtCore_Complete(core, AT_CORE_RESULT_OK, code);
+            return 1U;
+        }
+        return 0U;
+    }
+
+    if (core->transaction_type == AT_CORE_TRANSACTION_SYNC_CONNECT)
+    {
+        if (code == AT_CORE_FINAL_CONNECT)
+        {
+            AtCore_Complete(core, AT_CORE_RESULT_OK, code);
+            return 1U;
+        }
+        return 0U;
+    }
+
+    if (core->transaction_type == AT_CORE_TRANSACTION_ASYNC_OK)
+    {
+        if (code == AT_CORE_FINAL_OK)
+        {
+            core->stats.async_accepted++;
+            if (core->async_event_seen != 0U)
+            {
+                AtCore_Complete(core, AT_CORE_RESULT_ASYNC_EVENT, AT_CORE_FINAL_NONE);
+            }
+            else
+            {
+                core->phase = AT_CORE_PHASE_WAIT_ASYNC;
+                core->phase_start_ms = core->now_ms(core->user);
+            }
+            return 1U;
+        }
+        return 0U;
+    }
+
+    return 0U;
+}
+
 static void AtCore_HandleLine(AT_Core_T *core)
 {
     uint16_t length;
     uint8_t is_urc;
+    AT_CoreFinalCode_T final_code;
 
     length = core->line_length;
     core->line[length] = '\0';
@@ -207,6 +344,8 @@ static void AtCore_HandleLine(AT_Core_T *core)
 
     core->stats.lines++;
 
+    /* A line that started while idle is unsolicited even if a command starts
+     * before its trailing CR/LF arrives. */
     if ((core->busy == 0U) || (core->line_started_busy == 0U))
     {
         AtCore_HandleUrc(core, core->line, length);
@@ -219,16 +358,40 @@ static void AtCore_HandleLine(AT_Core_T *core)
         return;
     }
 
-    if (AtCore_IsErrorLine(core->line, length) != 0U)
+    /* RING is a standard unsolicited result code, not a command final code. */
+    if (AtCore_LineEquals(core->line, length, "RING") != 0U)
     {
-        /* Error final result codes terminate the transaction. */
-        AtCore_Complete(core, AT_CORE_RESULT_ERROR);
+        AtCore_HandleUrc(core, core->line, length);
         return;
     }
 
-    if (AtCore_LineEquals(core->line, length, core->success_token) != 0U)
+    /* During an async operation, its documented execution-result event wins
+     * over the generic URC classifier.  Other URCs remain unsolicited. */
+    if (AtCore_IsAsyncEvent(core, core->line, length) != 0U)
     {
-        AtCore_Complete(core, AT_CORE_RESULT_OK);
+        AtCore_HandleAsyncEvent(core, core->line, length);
+        return;
+    }
+
+    final_code = AtCore_ParseFinalCode(core->line, length);
+    if (AtCore_HandleFinalCode(core, final_code) != 0U)
+    {
+        return;
+    }
+
+    /* Legacy API may use a vendor-specific success token. */
+    if ((core->legacy_custom_result != 0U) &&
+        (AtCore_LineEquals(core->line, length, core->custom_success_token) != 0U))
+    {
+        AtCore_Complete(core, AT_CORE_RESULT_OK, AT_CORE_FINAL_CUSTOM);
+        return;
+    }
+
+    /* Once an asynchronous command has been accepted by OK, subsequent lines
+     * are event/URC traffic, not synchronous command response lines. */
+    if (core->phase == AT_CORE_PHASE_WAIT_ASYNC)
+    {
+        AtCore_HandleUrc(core, core->line, length);
         return;
     }
 
@@ -274,7 +437,7 @@ void AT_Core_Init(AT_Core_T *core,
     core->on_response = on_response;
     core->on_urc = on_urc;
     core->user = user;
-    (void)AtCore_CopyString(core->success_token, AT_CORE_PREFIX_MAX, "OK");
+    core->phase = AT_CORE_PHASE_IDLE;
 }
 
 void AT_Core_Reset(AT_Core_T *core)
@@ -300,14 +463,25 @@ void AT_Core_Reset(AT_Core_T *core)
     AT_Core_Init(core, tx, now_ms, is_urc, on_response, on_urc, user);
 }
 
-AT_CoreStartResult_T AT_Core_StartCommand(AT_Core_T *core, const AT_CoreCommand_T *command)
+static AT_CoreStartResult_T AtCore_Begin(AT_Core_T *core,
+                                         const char *command,
+                                         const char *response_prefix,
+                                         AT_CoreTransactionType_T type,
+                                         uint32_t response_timeout_ms,
+                                         uint32_t operation_timeout_ms,
+                                         AT_CoreMatchFn async_match)
 {
-    const char *success_token;
     uint16_t command_length;
     uint16_t sent;
 
-    if ((core == 0) || (command == 0) || (command->command == 0) ||
-        (core->tx == 0) || (core->now_ms == 0) || (command->timeout_ms == 0U))
+    if ((core == 0) || (command == 0) || (core->tx == 0) ||
+        (core->now_ms == 0) || (response_timeout_ms == 0U))
+    {
+        return AT_CORE_START_INVALID;
+    }
+    if ((type > AT_CORE_TRANSACTION_ASYNC_OK) ||
+        ((type == AT_CORE_TRANSACTION_ASYNC_OK) &&
+         ((operation_timeout_ms == 0U) || (async_match == 0))))
     {
         return AT_CORE_START_INVALID;
     }
@@ -316,41 +490,139 @@ AT_CoreStartResult_T AT_Core_StartCommand(AT_Core_T *core, const AT_CoreCommand_
         return AT_CORE_START_BUSY;
     }
 
-    success_token = command->success_token;
-    if ((success_token == 0) || (success_token[0] == '\0'))
-    {
-        success_token = "OK";
-    }
-
-    if ((AtCore_CopyString(core->command, AT_CORE_COMMAND_MAX, command->command) == 0U) ||
-        (AtCore_CopyString(core->response_prefix, AT_CORE_PREFIX_MAX, command->response_prefix) == 0U) ||
-        (AtCore_CopyString(core->success_token, AT_CORE_PREFIX_MAX, success_token) == 0U))
+    if ((AtCore_CopyString(core->command, AT_CORE_COMMAND_MAX, command) == 0U) ||
+        (AtCore_CopyString(core->response_prefix, AT_CORE_PREFIX_MAX, response_prefix) == 0U))
     {
         return AT_CORE_START_INVALID;
     }
 
+    core->custom_success_token[0] = '\0';
+    core->legacy_custom_result = 0U;
     core->completed_result = AT_CORE_RESULT_NONE;
-    core->command_timeout_ms = command->timeout_ms;
-    core->command_start_ms = core->now_ms(core->user);
+    core->last_final_code = AT_CORE_FINAL_NONE;
+    core->response_timeout_ms = response_timeout_ms;
+    core->operation_timeout_ms = operation_timeout_ms;
+    core->async_match = async_match;
+    core->transaction_type = type;
+    core->phase = AT_CORE_PHASE_WAIT_RESPONSE;
+    core->phase_start_ms = core->now_ms(core->user);
+    core->async_event_seen = 0U;
     core->busy = 1U;
 
     command_length = AtCore_StringLength(core->command, AT_CORE_COMMAND_MAX);
     sent = core->tx((const uint8_t *)core->command, command_length, core->user);
     if (sent != command_length)
     {
-        AtCore_Complete(core, AT_CORE_RESULT_TX_ERROR);
+        AtCore_Complete(core, AT_CORE_RESULT_TX_ERROR, AT_CORE_FINAL_NONE);
         return AT_CORE_START_TX_ERROR;
     }
 
     sent = core->tx((const uint8_t *)"\r\n", 2U, core->user);
     if (sent != 2U)
     {
-        AtCore_Complete(core, AT_CORE_RESULT_TX_ERROR);
+        AtCore_Complete(core, AT_CORE_RESULT_TX_ERROR, AT_CORE_FINAL_NONE);
         return AT_CORE_START_TX_ERROR;
     }
 
     core->stats.commands_started++;
     return AT_CORE_START_OK;
+}
+
+AT_CoreStartResult_T AT_Core_StartTransaction(AT_Core_T *core,
+                                              const AT_CoreTransaction_T *transaction)
+{
+    if (transaction == 0)
+    {
+        return AT_CORE_START_INVALID;
+    }
+
+    return AtCore_Begin(core,
+                        transaction->command,
+                        transaction->response_prefix,
+                        transaction->type,
+                        transaction->response_timeout_ms,
+                        transaction->operation_timeout_ms,
+                        transaction->async_match);
+}
+
+AT_CoreStartResult_T AT_Core_StartCommand(AT_Core_T *core, const AT_CoreCommand_T *command)
+{
+    const char *success_token;
+    AT_CoreStartResult_T start_result;
+    AT_CoreTransactionType_T type;
+
+    if ((command == 0) || (command->command == 0) || (command->timeout_ms == 0U))
+    {
+        return AT_CORE_START_INVALID;
+    }
+
+    success_token = command->success_token;
+    if ((success_token == 0) || (success_token[0] == '\0') ||
+        ((success_token[0] == 'O') && (success_token[1] == 'K') &&
+         (success_token[2] == '\0')))
+    {
+        type = AT_CORE_TRANSACTION_SYNC_OK;
+    }
+    else if ((success_token[0] == 'C') &&
+             (AtCore_LineEquals(success_token,
+                                AtCore_StringLength(success_token, AT_CORE_PREFIX_MAX),
+                                "CONNECT") != 0U))
+    {
+        type = AT_CORE_TRANSACTION_SYNC_CONNECT;
+    }
+    else if ((success_token[0] == '>') && (success_token[1] == '\0'))
+    {
+        type = AT_CORE_TRANSACTION_PROMPT;
+    }
+    else
+    {
+        type = AT_CORE_TRANSACTION_SYNC_OK;
+    }
+
+    start_result = AtCore_Begin(core,
+                                command->command,
+                                command->response_prefix,
+                                type,
+                                command->timeout_ms,
+                                0U,
+                                0);
+    if (start_result != AT_CORE_START_OK)
+    {
+        return start_result;
+    }
+
+    /* Preserve the Phase-3D legacy API semantics: a custom success token,
+     * including '>', is reported as AT_CORE_RESULT_OK. */
+    if ((type == AT_CORE_TRANSACTION_PROMPT) ||
+        ((success_token != 0) && (success_token[0] != '\0') &&
+         (AtCore_LineEquals(success_token,
+                            AtCore_StringLength(success_token, AT_CORE_PREFIX_MAX),
+                            "OK") == 0U) &&
+         (AtCore_LineEquals(success_token,
+                            AtCore_StringLength(success_token, AT_CORE_PREFIX_MAX),
+                            "CONNECT") == 0U) &&
+         !((success_token[0] == '>') && (success_token[1] == '\0'))))
+    {
+        if (AtCore_CopyString(core->custom_success_token,
+                              AT_CORE_PREFIX_MAX,
+                              success_token) == 0U)
+        {
+            AtCore_Complete(core, AT_CORE_RESULT_ERROR, AT_CORE_FINAL_NONE);
+            return AT_CORE_START_INVALID;
+        }
+        core->legacy_custom_result = 1U;
+    }
+
+    return start_result;
+}
+
+uint16_t AT_Core_WriteRaw(AT_Core_T *core, const uint8_t *data, uint16_t length)
+{
+    if ((core == 0) || (core->tx == 0) || (data == 0) || (length == 0U))
+    {
+        return 0U;
+    }
+    return core->tx(data, length, core->user);
 }
 
 void AT_Core_Feed(AT_Core_T *core, const uint8_t *data, uint16_t length)
@@ -405,27 +677,47 @@ void AT_Core_Feed(AT_Core_T *core, const uint8_t *data, uint16_t length)
 
         core->line[core->line_length++] = (char)byte;
 
-        /* MC610-style data-send prompts can be a bare '>' without CR/LF. */
-        if ((core->busy != 0U) && (core->line_started_busy != 0U) &&
-            (core->line_length == 1U) && (core->success_token[0] == '>') &&
-            (core->success_token[1] == '\0') && (core->line[0] == '>'))
+        /* Prompt is a transaction phase marker and may arrive without CR/LF. */
+        if ((core->busy != 0U) &&
+            (core->phase == AT_CORE_PHASE_WAIT_RESPONSE) &&
+            (core->transaction_type == AT_CORE_TRANSACTION_PROMPT) &&
+            (core->line_started_busy != 0U) &&
+            (core->line_length == 1U) && (core->line[0] == '>'))
         {
             core->line_length = 0U;
-            AtCore_Complete(core, AT_CORE_RESULT_OK);
+            if (core->legacy_custom_result != 0U)
+            {
+                AtCore_Complete(core, AT_CORE_RESULT_OK, AT_CORE_FINAL_PROMPT);
+            }
+            else
+            {
+                AtCore_Complete(core, AT_CORE_RESULT_PROMPT, AT_CORE_FINAL_PROMPT);
+            }
         }
     }
 }
 
 void AT_Core_Process(AT_Core_T *core)
 {
+    uint32_t timeout_ms;
+
     if ((core == 0) || (core->busy == 0U) || (core->now_ms == 0))
     {
         return;
     }
 
-    if ((uint32_t)(core->now_ms(core->user) - core->command_start_ms) >= core->command_timeout_ms)
+    if (core->phase == AT_CORE_PHASE_WAIT_ASYNC)
     {
-        AtCore_Complete(core, AT_CORE_RESULT_TIMEOUT);
+        timeout_ms = core->operation_timeout_ms;
+    }
+    else
+    {
+        timeout_ms = core->response_timeout_ms;
+    }
+
+    if ((uint32_t)(core->now_ms(core->user) - core->phase_start_ms) >= timeout_ms)
+    {
+        AtCore_Complete(core, AT_CORE_RESULT_TIMEOUT, AT_CORE_FINAL_NONE);
     }
 }
 
@@ -436,6 +728,24 @@ uint8_t AT_Core_IsBusy(const AT_Core_T *core)
         return 0U;
     }
     return core->busy;
+}
+
+AT_CorePhase_T AT_Core_GetPhase(const AT_Core_T *core)
+{
+    if (core == 0)
+    {
+        return AT_CORE_PHASE_IDLE;
+    }
+    return core->phase;
+}
+
+AT_CoreFinalCode_T AT_Core_GetLastFinalCode(const AT_Core_T *core)
+{
+    if (core == 0)
+    {
+        return AT_CORE_FINAL_NONE;
+    }
+    return core->last_final_code;
 }
 
 AT_CoreResult_T AT_Core_PeekResult(const AT_Core_T *core)

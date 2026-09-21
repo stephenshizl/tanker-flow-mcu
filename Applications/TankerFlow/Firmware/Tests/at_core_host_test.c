@@ -77,6 +77,32 @@ static uint8_t Test_IsUrc(const char *line, uint16_t length, void *user)
             (Test_StartsWith(line, length, "+MIPCALL:") != 0U)) ? 1U : 0U;
 }
 
+
+static uint8_t Test_MatchMipcall(const char *line, uint16_t length, void *user)
+{
+    (void)user;
+    return Test_StartsWith(line, length, "+MIPCALL:");
+}
+
+static AT_CoreStartResult_T Test_StartTransaction(AT_Core_T *core,
+                                                  const char *command,
+                                                  const char *prefix,
+                                                  AT_CoreTransactionType_T type,
+                                                  uint32_t response_timeout_ms,
+                                                  uint32_t operation_timeout_ms,
+                                                  AT_CoreMatchFn async_match)
+{
+    AT_CoreTransaction_T transaction;
+
+    transaction.command = command;
+    transaction.response_prefix = prefix;
+    transaction.type = type;
+    transaction.response_timeout_ms = response_timeout_ms;
+    transaction.operation_timeout_ms = operation_timeout_ms;
+    transaction.async_match = async_match;
+    return AT_Core_StartTransaction(core, &transaction);
+}
+
 static void Test_CopyLine(char *dst, uint16_t capacity, const char *line, uint16_t length)
 {
     uint16_t copy_length;
@@ -397,6 +423,201 @@ static void Test_CustomSuccessToken(void)
     CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
 }
 
+
+static void Test_DetailedFinalCodes(void)
+{
+    typedef struct
+    {
+        const char *text;
+        AT_CoreFinalCode_T code;
+    } FinalCase_T;
+
+    static const FinalCase_T cases[] =
+    {
+        { "ERROR\r\n", AT_CORE_FINAL_ERROR },
+        { "+CME ERROR: 10\r\n", AT_CORE_FINAL_CME_ERROR },
+        { "+CMS ERROR: 500\r\n", AT_CORE_FINAL_CMS_ERROR },
+        { "NO CARRIER\r\n", AT_CORE_FINAL_NO_CARRIER },
+        { "NO DIALTONE\r\n", AT_CORE_FINAL_NO_DIALTONE },
+        { "BUSY\r\n", AT_CORE_FINAL_BUSY },
+        { "NO ANSWER\r\n", AT_CORE_FINAL_NO_ANSWER }
+    };
+    AT_Core_T core;
+    TestContext_T ctx;
+    uint16_t index;
+
+    Test_Init(&core, &ctx);
+    for (index = 0U; index < (uint16_t)(sizeof(cases) / sizeof(cases[0])); index++)
+    {
+        CHECK_TRUE(Test_StartTransaction(&core,
+                                         "ATD123",
+                                         0,
+                                         AT_CORE_TRANSACTION_SYNC_OK,
+                                         1000U,
+                                         0U,
+                                         0) == AT_CORE_START_OK);
+        AT_Core_Feed(&core,
+                     (const uint8_t *)cases[index].text,
+                     (uint16_t)strlen(cases[index].text));
+        CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_ERROR);
+        CHECK_TRUE(AT_Core_GetLastFinalCode(&core) == cases[index].code);
+    }
+}
+
+static void Test_ConnectIsAValidNonOkSuccess(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_StartTransaction(&core,
+                                     "ATD*99#",
+                                     0,
+                                     AT_CORE_TRANSACTION_SYNC_CONNECT,
+                                     1000U,
+                                     0U,
+                                     0) == AT_CORE_START_OK);
+    AT_Core_Feed(&core,
+                 (const uint8_t *)"CONNECT 115200\r\n",
+                 (uint16_t)strlen("CONNECT 115200\r\n"));
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
+    CHECK_TRUE(AT_Core_GetLastFinalCode(&core) == AT_CORE_FINAL_CONNECT);
+}
+
+static void Test_PromptIsAFirstClassCompletion(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_StartTransaction(&core,
+                                     "AT+MIPSEND=1,32",
+                                     0,
+                                     AT_CORE_TRANSACTION_PROMPT,
+                                     1000U,
+                                     0U,
+                                     0) == AT_CORE_START_OK);
+    AT_Core_Feed(&core, (const uint8_t *)">", 1U);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_PROMPT);
+    CHECK_TRUE(AT_Core_GetLastFinalCode(&core) == AT_CORE_FINAL_PROMPT);
+    CHECK_TRUE(core.stats.prompts == 1U);
+}
+
+static void Test_AsyncOkDoesNotCompleteTransaction(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_StartTransaction(&core,
+                                     "AT+MIPCALL=1",
+                                     0,
+                                     AT_CORE_TRANSACTION_ASYNC_OK,
+                                     1000U,
+                                     30000U,
+                                     Test_MatchMipcall) == AT_CORE_START_OK);
+
+    AT_Core_Feed(&core, (const uint8_t *)"OK\r\n", 4U);
+    CHECK_TRUE(AT_Core_IsBusy(&core) != 0U);
+    CHECK_TRUE(AT_Core_GetPhase(&core) == AT_CORE_PHASE_WAIT_ASYNC);
+    CHECK_TRUE(AT_Core_PeekResult(&core) == AT_CORE_RESULT_NONE);
+    CHECK_TRUE(core.stats.async_accepted == 1U);
+
+    /* Unrelated unsolicited reports remain URCs while the operation is pending. */
+    AT_Core_Feed(&core,
+                 (const uint8_t *)"+CEREG: 1\r\n",
+                 (uint16_t)strlen("+CEREG: 1\r\n"));
+    CHECK_TRUE(AT_Core_IsBusy(&core) != 0U);
+    CHECK_TRUE(ctx.urc_count == 1U);
+
+    AT_Core_Feed(&core,
+                 (const uint8_t *)"+MIPCALL:10.1.2.3\r\n",
+                 (uint16_t)strlen("+MIPCALL:10.1.2.3\r\n"));
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_ASYNC_EVENT);
+    CHECK_TRUE(AT_Core_GetLastFinalCode(&core) == AT_CORE_FINAL_OK);
+    CHECK_TRUE(ctx.urc_count == 2U);
+    CHECK_TRUE(core.stats.async_completed == 1U);
+}
+
+static void Test_AsyncOperationHasIndependentTimeout(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_StartTransaction(&core,
+                                     "AT+MIPCALL=1",
+                                     0,
+                                     AT_CORE_TRANSACTION_ASYNC_OK,
+                                     1000U,
+                                     30000U,
+                                     Test_MatchMipcall) == AT_CORE_START_OK);
+    ctx.now_ms = 100U;
+    AT_Core_Feed(&core, (const uint8_t *)"OK\r\n", 4U);
+
+    ctx.now_ms = 30099U;
+    AT_Core_Process(&core);
+    CHECK_TRUE(AT_Core_IsBusy(&core) != 0U);
+    ctx.now_ms = 30100U;
+    AT_Core_Process(&core);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_TIMEOUT);
+    CHECK_TRUE(AT_Core_GetLastFinalCode(&core) == AT_CORE_FINAL_OK);
+}
+
+static void Test_AsyncEventBeforeOkIsHandled(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_StartTransaction(&core,
+                                     "AT+MIPCALL=1",
+                                     0,
+                                     AT_CORE_TRANSACTION_ASYNC_OK,
+                                     1000U,
+                                     30000U,
+                                     Test_MatchMipcall) == AT_CORE_START_OK);
+    AT_Core_Feed(&core,
+                 (const uint8_t *)"+MIPCALL:10.1.2.3\r\nOK\r\n",
+                 (uint16_t)strlen("+MIPCALL:10.1.2.3\r\nOK\r\n"));
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_ASYNC_EVENT);
+    CHECK_TRUE(ctx.urc_count == 1U);
+}
+
+static void Test_RingIsUnsolicitedDuringCommand(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_StartTransaction(&core,
+                                     "AT+CSQ",
+                                     "+CSQ:",
+                                     AT_CORE_TRANSACTION_SYNC_OK,
+                                     1000U,
+                                     0U,
+                                     0) == AT_CORE_START_OK);
+    AT_Core_Feed(&core,
+                 (const uint8_t *)"RING\r\n+CSQ: 18,99\r\nOK\r\n",
+                 (uint16_t)strlen("RING\r\n+CSQ: 18,99\r\nOK\r\n"));
+    CHECK_TRUE(ctx.urc_count == 1U);
+    CHECK_TRUE(strcmp(ctx.last_urc, "RING") == 0);
+    CHECK_TRUE(ctx.response_count == 1U);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
+}
+
+static void Test_RawWriteUsesTransportWithoutFraming(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+    static const uint8_t payload[] = { '1', '2', '3', '4' };
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(AT_Core_WriteRaw(&core, payload, (uint16_t)sizeof(payload)) == sizeof(payload));
+    CHECK_TRUE(ctx.tx_length == sizeof(payload));
+    CHECK_TRUE(memcmp(ctx.tx, payload, sizeof(payload)) == 0);
+}
+
 int main(void)
 {
     Test_BasicOkAndEcho();
@@ -413,6 +634,14 @@ int main(void)
     Test_AsyncOkIsAcceptanceNotOperationCompletion();
     Test_PartialIdleUrcAcrossCommandStart();
     Test_CustomSuccessToken();
+    Test_DetailedFinalCodes();
+    Test_ConnectIsAValidNonOkSuccess();
+    Test_PromptIsAFirstClassCompletion();
+    Test_AsyncOkDoesNotCompleteTransaction();
+    Test_AsyncOperationHasIndependentTimeout();
+    Test_AsyncEventBeforeOkIsHandled();
+    Test_RingIsUnsolicitedDuringCommand();
+    Test_RawWriteUsesTransportWithoutFraming();
 
     if (g_failures != 0)
     {
