@@ -1,8 +1,8 @@
 # TankerFlow APM32F030RC Firmware
 
-## Phase-3C baseline: 4G AT core on the Phase-3B GNSS/BSP baseline
+## Phase-3D baseline: MC610 power-on and network-registration state machine
 
-Phase-3C builds directly on the committed Phase-3B baseline.  The scope is deliberately limited to a reusable, non-blocking 4G AT command core on top of the existing USART3 DMA+IDLE receive path.  It adds command transmission, line framing, echo suppression, final-result matching, response/URC separation, timeout handling and host-side mock tests.  Bootloader, OTA/FOTA, TCP/MQTT sessions, MC610 power-on sequencing, Bluetooth business protocol, flowmeter Modbus register parsing, server protocol and application state machine remain out of scope.
+Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/Keil project hierarchy.  The scope is limited to MC610 hardware power-key/reset sequencing plus a non-blocking AT/SIM/signal/network-registration state machine.  Bootloader, OTA/FOTA, TCP/MQTT sessions, server upload, Bluetooth business protocol, flowmeter protocol and tanker business logic remain out of scope.
 
 ### Build target
 
@@ -10,7 +10,7 @@ Phase-3C builds directly on the committed Phase-3B baseline.  The scope is delib
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.2-phase3c`
+- App version: `0.3.3-phase3d`
 
 ### Frozen board mapping
 
@@ -31,9 +31,34 @@ Phase-3C builds directly on the committed Phase-3B baseline.  The scope is delib
 
 
 
+
+### Phase-3D MC610 state machine
+
+The board drives MC610 `PWRKEY` and `RESET` through inverting NPN open-collector stages.  Therefore the MCU-side semantics are intentionally exposed as assert/release APIs: PA5 high asserts the module PWRKEY low, and PA4 high asserts the module RESET low.  BSP initialization keeps both MCU pins low so the module-side signals are released.
+
+Power-on timing follows the MC610 hardware guide:
+
+- wait at least 30 ms after the module VBAT rail is available;
+- assert PWRKEY for at least 2 s (firmware uses the 2000 ms minimum);
+- release PWRKEY and probe `AT` asynchronously until the module responds;
+- a recovery hardware reset asserts RESET for at least 100 ms (firmware uses 100 ms).
+
+`Modem4G_Start()` starts the sequence. `Modem4G_Process()` remains non-blocking and advances through:
+
+```text
+VBAT_SETTLE -> PWRKEY_ASSERT -> AT_SYNC -> ATE0 -> CPIN -> CSQ
+             -> CEREG -> CGREG -> CREG -> REG_WAIT/READY
+```
+
+Registration value `1` (home) or `5` (roaming) is treated as registered. `CEREG` is checked first, with `CGREG`/`CREG` fallback so LTE and GSM registration domains are both covered. A missing/not-ready SIM is polled without repeatedly resetting the modem. Network search is also polled without treating lack of service as a modem crash. AT transport timeouts are treated separately from network-registration delay.
+
+Public status is available through `Modem4G_GetStatus()` and `Modem4G_IsReady()`. The driver records SIM readiness, CSQ, CEREG/CGREG/CREG values, reset attempts and last successful AT time.
+
+The state machine uses fixed storage only, performs no delay loop, and keeps all parsing in foreground context.
+
 ### Phase-3C 4G AT core
 
-- `Drivers/Modem/at_core.*`: transport-independent asynchronous AT engine.
+- `Middleware/Protocol/AT/at_core.*`: transport-independent asynchronous AT engine.
   - fixed static storage only; no `malloc`;
   - accepts arbitrary RX chunks from DMA/ring-buffer foreground processing;
   - frames CR/LF AT lines, handles split/concatenated responses and recovers after overlength lines;
@@ -41,7 +66,7 @@ Phase-3C builds directly on the committed Phase-3B baseline.  The scope is delib
   - supports a per-command response prefix so query responses such as `+CEREG:` are not misclassified as URCs;
   - supports a configurable success token for later prompt-based commands;
   - uses wrap-safe millisecond timeout checks and never busy-waits for a response.
-- `Drivers/Modem/modem_4g.*`: TankerFlow adapter for USART3 and SysTick.
+- `Drivers/Modem/MC610/modem_4g.*`: TankerFlow adapter for USART3 and SysTick.
   - consumes `BSP_UART_4G` in the foreground; ISR/DMA code remains protocol-free;
   - classifies MC610-relevant unsolicited lines including `+MIPRTCP`, `+MIPSTAT`, network registration URCs and common boot indications;
   - records lightweight URC counters and a truncated last-URC snapshot for bench diagnostics;
@@ -54,13 +79,13 @@ This phase keeps the useful separation from the earlier 4G relay project's `dtu_
 
 ### Phase-3B GNSS parser
 
-- `Drivers/GNSS/gnss.*`: stream framing/integration layer.
+- `Drivers/GNSS/ATGM336/gnss.*`: stream framing/integration layer.
   - foreground-only consumption from `BSP_UART_GNSS`; ISR/DMA code stays protocol-free;
   - accepts arbitrary chunks, including split sentences, concatenated sentences and garbage prefixes;
   - resynchronizes on `$` and drops overlength lines safely;
   - exposes `GNSS_Info_T`, `GNSS_Stats_T` and `GNSS_IsFresh()`;
   - uses fixed static storage only.
-- `Drivers/GNSS/nmea_parser.*`: pure NMEA sentence decoder.
+- `Middleware/Protocol/NMEA/nmea_parser.*`: pure NMEA sentence decoder.
   - validates XOR checksum before parsing;
   - supports RMC and GGA from GN/GP and other standard two-character talker IDs;
   - converts latitude/longitude to signed degrees x 1e7 without floating point;
@@ -143,13 +168,16 @@ If SGM41511 is absent, I2C wiring/power is wrong, or ADC initialization fails, s
 From `Applications/TankerFlow/Firmware` on a host with GCC:
 
 ```text
-gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/GNSS Tests/gnss_host_test.c Drivers/GNSS/gnss.c Drivers/GNSS/nmea_parser.c -o gnss_host_test
+gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/GNSS/ATGM336 -IMiddleware/Protocol/NMEA Tests/gnss_host_test.c Drivers/GNSS/ATGM336/gnss.c Middleware/Protocol/NMEA/nmea_parser.c -o gnss_host_test
 ./gnss_host_test
 
-gcc -std=c99 -Wall -Wextra -Werror -IDrivers/Modem Tests/at_core_host_test.c Drivers/Modem/at_core.c -o at_core_host_test
+gcc -std=c99 -Wall -Wextra -Werror -IMiddleware/Protocol/AT Tests/at_core_host_test.c Middleware/Protocol/AT/at_core.c -o at_core_host_test
 ./at_core_host_test
+
+gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/Modem/MC610 -IMiddleware/Protocol/AT Tests/mc610_host_test.c Drivers/Modem/MC610/modem_4g.c Middleware/Protocol/AT/at_core.c -o mc610_host_test
+./mc610_host_test
 ```
 
-Expected final lines: `GNSS host tests: PASS` and `AT core host tests: PASS`.
+Expected final lines: `GNSS host tests: PASS`, `AT core host tests: PASS` and `MC610 host tests: PASS`.
 
-Do not add Bootloader/OTA, TCP/MQTT session logic, automatic MC610 power sequencing, server upload or other business protocols in this phase.
+Do not add Bootloader/OTA, TCP/MQTT session logic, server upload or other business protocols in this phase.
