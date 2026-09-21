@@ -668,11 +668,21 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>System</GroupName>
+          <Files>
             <File>
               <FileName>apm32f0xx_int.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\apm32f0xx_int.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSP</GroupName>
+          <Files>
             <File>
               <FileName>bsp_tick.c</FileName>
               <FileType>1</FileType>
@@ -713,35 +723,65 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Diagnostics</GroupName>
+          <Files>
             <File>
               <FileName>bsp_selftest.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_selftest.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Charger</GroupName>
+          <Files>
             <File>
               <FileName>sgm41511.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-GNSS</GroupName>
+          <Files>
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Modem</GroupName>
+          <Files>
             <File>
-              <FileName>nmea_parser.c</FileName>
+              <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-AT</GroupName>
+          <Files>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-NMEA</GroupName>
+          <Files>
             <File>
-              <FileName>modem_4g.c</FileName>
+              <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1409,11 +1449,21 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>System</GroupName>
+          <Files>
             <File>
               <FileName>apm32f0xx_int.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\apm32f0xx_int.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSP</GroupName>
+          <Files>
             <File>
               <FileName>bsp_tick.c</FileName>
               <FileType>1</FileType>
@@ -1454,35 +1504,65 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Diagnostics</GroupName>
+          <Files>
             <File>
               <FileName>bsp_selftest.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_selftest.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Charger</GroupName>
+          <Files>
             <File>
               <FileName>sgm41511.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-GNSS</GroupName>
+          <Files>
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Modem</GroupName>
+          <Files>
             <File>
-              <FileName>nmea_parser.c</FileName>
+              <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-AT</GroupName>
+          <Files>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-NMEA</GroupName>
+          <Files>
             <File>
-              <FileName>modem_4g.c</FileName>
+              <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2150,11 +2230,21 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>System</GroupName>
+          <Files>
             <File>
               <FileName>apm32f0xx_int.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\apm32f0xx_int.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSP</GroupName>
+          <Files>
             <File>
               <FileName>bsp_tick.c</FileName>
               <FileType>1</FileType>
@@ -2195,35 +2285,65 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Diagnostics</GroupName>
+          <Files>
             <File>
               <FileName>bsp_selftest.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_selftest.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Charger</GroupName>
+          <Files>
             <File>
               <FileName>sgm41511.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-GNSS</GroupName>
+          <Files>
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Modem</GroupName>
+          <Files>
             <File>
-              <FileName>nmea_parser.c</FileName>
+              <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-AT</GroupName>
+          <Files>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-NMEA</GroupName>
+          <Files>
             <File>
-              <FileName>modem_4g.c</FileName>
+              <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2891,11 +3011,21 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>System</GroupName>
+          <Files>
             <File>
               <FileName>apm32f0xx_int.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\apm32f0xx_int.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSP</GroupName>
+          <Files>
             <File>
               <FileName>bsp_tick.c</FileName>
               <FileType>1</FileType>
@@ -2936,35 +3066,65 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Diagnostics</GroupName>
+          <Files>
             <File>
               <FileName>bsp_selftest.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_selftest.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Charger</GroupName>
+          <Files>
             <File>
               <FileName>sgm41511.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\SGM41511\sgm41511.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-GNSS</GroupName>
+          <Files>
             <File>
               <FileName>gnss.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\GNSS\ATGM336\gnss.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-Modem</GroupName>
+          <Files>
             <File>
-              <FileName>nmea_parser.c</FileName>
+              <FileName>modem_4g.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
+              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-AT</GroupName>
+          <Files>
             <File>
               <FileName>at_core.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Middleware\Protocol\AT\at_core.c</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middleware-NMEA</GroupName>
+          <Files>
             <File>
-              <FileName>modem_4g.c</FileName>
+              <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Drivers\Modem\MC610\modem_4g.c</FilePath>
+              <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
             </File>
           </Files>
         </Group>
