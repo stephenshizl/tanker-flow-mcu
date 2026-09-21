@@ -6,6 +6,7 @@
 
 #define TEST_TX_MAX      (512U)
 #define TEST_URC_MAX     (AT_CORE_LINE_MAX)
+#define TEST_RESPONSE_MAX (256U)
 
 typedef struct
 {
@@ -15,7 +16,7 @@ typedef struct
     uint8_t force_tx_error;
     uint32_t response_count;
     uint32_t urc_count;
-    char last_response[AT_CORE_CAPTURE_MAX];
+    char last_response[TEST_RESPONSE_MAX];
     char last_urc[TEST_URC_MAX];
 } TestContext_T;
 
@@ -72,7 +73,8 @@ static uint8_t Test_IsUrc(const char *line, uint16_t length, void *user)
     (void)user;
     return ((Test_StartsWith(line, length, "+MIPSTAT") != 0U) ||
             (Test_StartsWith(line, length, "+MIPRTCP:") != 0U) ||
-            (Test_StartsWith(line, length, "+CEREG:") != 0U)) ? 1U : 0U;
+            (Test_StartsWith(line, length, "+CEREG:") != 0U) ||
+            (Test_StartsWith(line, length, "+MIPCALL:") != 0U)) ? 1U : 0U;
 }
 
 static void Test_CopyLine(char *dst, uint16_t capacity, const char *line, uint16_t length)
@@ -133,7 +135,6 @@ static void Test_BasicOkAndEcho(void)
 {
     AT_Core_T core;
     TestContext_T ctx;
-    char response[32];
 
     Test_Init(&core, &ctx);
     CHECK_TRUE(Test_Start(&core, "AT", 0, 1000U) == AT_CORE_START_OK);
@@ -143,8 +144,7 @@ static void Test_BasicOkAndEcho(void)
     AT_Core_Feed(&core, (const uint8_t *)"K\r\n", 3U);
     CHECK_TRUE(AT_Core_IsBusy(&core) == 0U);
     CHECK_TRUE(Test_Start(&core, "ATE0", 0, 1000U) == AT_CORE_START_BUSY);
-    CHECK_TRUE(AT_Core_TakeResult(&core, response, sizeof(response)) == AT_CORE_RESULT_OK);
-    CHECK_TRUE(response[0] == '\0');
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
     CHECK_TRUE(core.stats.echo_lines == 1U);
     CHECK_TRUE(core.stats.commands_ok == 1U);
 }
@@ -153,7 +153,6 @@ static void Test_ResponseAndUrcSeparation(void)
 {
     AT_Core_T core;
     TestContext_T ctx;
-    char response[64];
     const char stream[] = "+MIPSTAT: 1,1\r\n+CSQ: 15,99\r\nOK\r\n";
 
     Test_Init(&core, &ctx);
@@ -164,15 +163,13 @@ static void Test_ResponseAndUrcSeparation(void)
     CHECK_TRUE(strcmp(ctx.last_urc, "+MIPSTAT: 1,1") == 0);
     CHECK_TRUE(ctx.response_count == 1U);
     CHECK_TRUE(strcmp(ctx.last_response, "+CSQ: 15,99") == 0);
-    CHECK_TRUE(AT_Core_TakeResult(&core, response, sizeof(response)) == AT_CORE_RESULT_OK);
-    CHECK_TRUE(strcmp(response, "+CSQ: 15,99") == 0);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
 }
 
 static void Test_ExpectedPrefixWinsOverUrcClassifier(void)
 {
     AT_Core_T core;
     TestContext_T ctx;
-    char response[64];
 
     Test_Init(&core, &ctx);
     CHECK_TRUE(Test_Start(&core, "AT+CEREG?", "+CEREG:", 1000U) == AT_CORE_START_OK);
@@ -182,8 +179,7 @@ static void Test_ExpectedPrefixWinsOverUrcClassifier(void)
 
     CHECK_TRUE(ctx.urc_count == 0U);
     CHECK_TRUE(ctx.response_count == 1U);
-    CHECK_TRUE(AT_Core_TakeResult(&core, response, sizeof(response)) == AT_CORE_RESULT_OK);
-    CHECK_TRUE(strcmp(response, "+CEREG: 0,1") == 0);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
 }
 
 static void Test_IdleLineIsUrc(void)
@@ -201,20 +197,21 @@ static void Test_ErrorResults(void)
 {
     AT_Core_T core;
     TestContext_T ctx;
-    char response[64];
 
     Test_Init(&core, &ctx);
     CHECK_TRUE(Test_Start(&core, "AT+BAD", 0, 1000U) == AT_CORE_START_OK);
     AT_Core_Feed(&core, (const uint8_t *)"ERROR\r\n", 7U);
-    CHECK_TRUE(AT_Core_TakeResult(&core, response, sizeof(response)) == AT_CORE_RESULT_ERROR);
-    CHECK_TRUE(strcmp(response, "ERROR") == 0);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_ERROR);
 
     CHECK_TRUE(Test_Start(&core, "AT+CPIN?", "+CPIN:", 1000U) == AT_CORE_START_OK);
     AT_Core_Feed(&core,
                  (const uint8_t *)"+CME ERROR: 10\r\n",
                  (uint16_t)strlen("+CME ERROR: 10\r\n"));
-    CHECK_TRUE(AT_Core_TakeResult(&core, response, sizeof(response)) == AT_CORE_RESULT_ERROR);
-    CHECK_TRUE(strcmp(response, "+CME ERROR: 10") == 0);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_ERROR);
+
+    CHECK_TRUE(Test_Start(&core, "ATD123", 0, 1000U) == AT_CORE_START_OK);
+    AT_Core_Feed(&core, (const uint8_t *)"BUSY\r\n", 6U);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_ERROR);
 }
 
 static void Test_TimeoutAndBusy(void)
@@ -232,7 +229,7 @@ static void Test_TimeoutAndBusy(void)
     ctx.now_ms = 500U;
     AT_Core_Process(&core);
     CHECK_TRUE(AT_Core_PeekResult(&core) == AT_CORE_RESULT_TIMEOUT);
-    CHECK_TRUE(AT_Core_TakeResult(&core, 0, 0U) == AT_CORE_RESULT_TIMEOUT);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_TIMEOUT);
 }
 
 
@@ -249,7 +246,7 @@ static void Test_TimeoutAcrossTickWrap(void)
     CHECK_TRUE(AT_Core_IsBusy(&core) != 0U);
     ctx.now_ms = 0x00000010UL;
     AT_Core_Process(&core);
-    CHECK_TRUE(AT_Core_TakeResult(&core, 0, 0U) == AT_CORE_RESULT_TIMEOUT);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_TIMEOUT);
 }
 
 static void Test_TxError(void)
@@ -261,7 +258,7 @@ static void Test_TxError(void)
     ctx.force_tx_error = 1U;
     CHECK_TRUE(Test_Start(&core, "AT", 0, 1000U) == AT_CORE_START_TX_ERROR);
     CHECK_TRUE(AT_Core_IsBusy(&core) == 0U);
-    CHECK_TRUE(AT_Core_TakeResult(&core, 0, 0U) == AT_CORE_RESULT_TX_ERROR);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_TX_ERROR);
 }
 
 static void Test_LongMiprtcpUrc(void)
@@ -308,9 +305,66 @@ static void Test_OverflowRecovery(void)
     AT_Core_Feed(&core, (const uint8_t *)"OK\r\n", 4U);
 
     CHECK_TRUE(core.stats.line_overflow == 1U);
-    CHECK_TRUE(AT_Core_TakeResult(&core, 0, 0U) == AT_CORE_RESULT_OK);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
 }
 
+
+
+static void Test_LargeMultiLineResponseStreamsWithoutAggregateBuffer(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+    char line[96];
+    uint16_t index;
+    uint16_t line_index;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_Start(&core, "AT+CLAC", 0, 1000U) == AT_CORE_START_OK);
+
+    /* Feed more than 1 KB total in deliberately small UART/DMA-like chunks. */
+    for (line_index = 0U; line_index < 20U; line_index++)
+    {
+        int written;
+        written = snprintf(line, sizeof(line), "+CMD%02u:", (unsigned int)line_index);
+        CHECK_TRUE(written > 0);
+        for (index = (uint16_t)written; index < 72U; index++)
+        {
+            line[index] = (char)('A' + (line_index % 26U));
+        }
+        line[72] = '\r';
+        line[73] = '\n';
+        line[74] = '\0';
+
+        AT_Core_Feed(&core, (const uint8_t *)line, 7U);
+        AT_Core_Feed(&core, (const uint8_t *)&line[7], 13U);
+        AT_Core_Feed(&core, (const uint8_t *)&line[20], 54U);
+    }
+
+    CHECK_TRUE(AT_Core_IsBusy(&core) != 0U);
+    CHECK_TRUE(ctx.response_count == 20U);
+    CHECK_TRUE(core.stats.response_bytes == (20U * 72U));
+
+    AT_Core_Feed(&core, (const uint8_t *)"OK\r\n", 4U);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
+}
+
+static void Test_AsyncOkIsAcceptanceNotOperationCompletion(void)
+{
+    AT_Core_T core;
+    TestContext_T ctx;
+
+    Test_Init(&core, &ctx);
+    CHECK_TRUE(Test_Start(&core, "AT+MIPCALL=1", 0, 1000U) == AT_CORE_START_OK);
+    AT_Core_Feed(&core, (const uint8_t *)"OK\r\n", 4U);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
+
+    /* The documented asynchronous execution result arrives later as a URC. */
+    AT_Core_Feed(&core,
+                 (const uint8_t *)"+MIPCALL:10.1.2.3\r\n",
+                 (uint16_t)strlen("+MIPCALL:10.1.2.3\r\n"));
+    CHECK_TRUE(ctx.urc_count == 1U);
+    CHECK_TRUE(strcmp(ctx.last_urc, "+MIPCALL:10.1.2.3") == 0);
+}
 
 static void Test_PartialIdleUrcAcrossCommandStart(void)
 {
@@ -324,7 +378,7 @@ static void Test_PartialIdleUrcAcrossCommandStart(void)
 
     CHECK_TRUE(ctx.urc_count == 1U);
     CHECK_TRUE(strcmp(ctx.last_urc, "+MIPSTAT: 1,0") == 0);
-    CHECK_TRUE(AT_Core_TakeResult(&core, 0, 0U) == AT_CORE_RESULT_OK);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
 }
 
 static void Test_CustomSuccessToken(void)
@@ -340,7 +394,7 @@ static void Test_CustomSuccessToken(void)
     request.timeout_ms = 1000U;
     CHECK_TRUE(AT_Core_StartCommand(&core, &request) == AT_CORE_START_OK);
     AT_Core_Feed(&core, (const uint8_t *)">", 1U);
-    CHECK_TRUE(AT_Core_TakeResult(&core, 0, 0U) == AT_CORE_RESULT_OK);
+    CHECK_TRUE(AT_Core_TakeResult(&core) == AT_CORE_RESULT_OK);
 }
 
 int main(void)
@@ -355,6 +409,8 @@ int main(void)
     Test_TxError();
     Test_LongMiprtcpUrc();
     Test_OverflowRecovery();
+    Test_LargeMultiLineResponseStreamsWithoutAggregateBuffer();
+    Test_AsyncOkIsAcceptanceNotOperationCompletion();
     Test_PartialIdleUrcAcrossCommandStart();
     Test_CustomSuccessToken();
 

@@ -6,7 +6,6 @@
 
 #define MODEM4G_READ_CHUNK_SIZE         (128U)
 #define MODEM4G_LAST_URC_MAX            (128U)
-#define MODEM4G_RESPONSE_MAX            (96U)
 
 /* MC610 hardware-guide minimums plus small scheduling margin. */
 #define MODEM4G_VBAT_SETTLE_MS          (30U)
@@ -33,6 +32,20 @@ typedef enum
     MODEM4G_STEP_TIMEOUT,
     MODEM4G_STEP_TX_ERROR
 } Modem4G_CommandStep_T;
+
+typedef struct
+{
+    uint8_t cpin_seen;
+    uint8_t cpin_ready;
+    uint8_t csq_seen;
+    uint8_t csq;
+    uint8_t cereg_seen;
+    uint8_t cereg;
+    uint8_t cgreg_seen;
+    uint8_t cgreg;
+    uint8_t creg_seen;
+    uint8_t creg;
+} Modem4G_CommandData_T;
 
 static uint16_t Modem4G_StringLength(const char *text)
 {
@@ -82,6 +95,7 @@ static uint32_t g_retry_start_ms;
 static uint8_t g_command_issued;
 static uint8_t g_command_retry_count;
 static uint8_t g_retry_waiting;
+static Modem4G_CommandData_T g_command_data;
 
 static uint8_t Modem4G_StartsWith(const char *line, uint16_t length, const char *prefix)
 {
@@ -287,6 +301,10 @@ static uint8_t Modem4G_IsKnownUrc(const char *line, uint16_t length, void *user)
     if ((Modem4G_StartsWith(line, length, "+MIPRTCP:") != 0U) ||
         (Modem4G_StartsWith(line, length, "+MIPSTAT") != 0U) ||
         (Modem4G_StartsWith(line, length, "+MIPCLOSE") != 0U) ||
+        (Modem4G_StartsWith(line, length, "+MIPCALL:") != 0U) ||
+        (Modem4G_StartsWith(line, length, "+MIPOPEN:") != 0U) ||
+        (Modem4G_StartsWith(line, length, "+MIPNTP:") != 0U) ||
+        (Modem4G_StartsWith(line, length, "+MPINGSTAT:") != 0U) ||
         (Modem4G_StartsWith(line, length, "+CEREG:") != 0U) ||
         (Modem4G_StartsWith(line, length, "+CGREG:") != 0U) ||
         (Modem4G_StartsWith(line, length, "+CREG:") != 0U) ||
@@ -302,9 +320,58 @@ static uint8_t Modem4G_IsKnownUrc(const char *line, uint16_t length, void *user)
 
 static void Modem4G_OnResponse(const char *line, uint16_t length, void *user)
 {
-    (void)line;
-    (void)length;
+    uint8_t value;
+
     (void)user;
+
+    /*
+     * Parse response lines as they arrive.  Do not accumulate the whole AT
+     * response: a command may contain many lines or more than 1 KB in total.
+     */
+    if (Modem4G_StartsWith(line, length, "+CPIN:") != 0U)
+    {
+        g_command_data.cpin_seen = 1U;
+        g_command_data.cpin_ready = Modem4G_IsCpinReady(line);
+    }
+    else if (Modem4G_StartsWith(line, length, "+CSQ:") != 0U)
+    {
+        g_command_data.csq_seen = 1U;
+        if (Modem4G_ParseCsq(line, &value) != 0U)
+        {
+            g_command_data.csq = value;
+        }
+        else
+        {
+            g_command_data.csq = MODEM4G_CSQ_UNKNOWN;
+        }
+    }
+    else if (Modem4G_StartsWith(line, length, "+CEREG:") != 0U)
+    {
+        if (Modem4G_ParseRegistration(line, &value) != 0U)
+        {
+            g_command_data.cereg_seen = 1U;
+            g_command_data.cereg = value;
+        }
+    }
+    else if (Modem4G_StartsWith(line, length, "+CGREG:") != 0U)
+    {
+        if (Modem4G_ParseRegistration(line, &value) != 0U)
+        {
+            g_command_data.cgreg_seen = 1U;
+            g_command_data.cgreg = value;
+        }
+    }
+    else if (Modem4G_StartsWith(line, length, "+CREG:") != 0U)
+    {
+        if (Modem4G_ParseRegistration(line, &value) != 0U)
+        {
+            g_command_data.creg_seen = 1U;
+            g_command_data.creg = value;
+        }
+    }
+    else
+    {
+    }
 }
 
 static void Modem4G_OnUrc(const char *line, uint16_t length, void *user)
@@ -373,11 +440,21 @@ static void Modem4G_OnUrc(const char *line, uint16_t length, void *user)
     g_last_urc[copy_length] = '\0';
 }
 
+static void Modem4G_ResetCommandData(void)
+{
+    Modem4G_ClearBytes(&g_command_data, (uint16_t)sizeof(g_command_data));
+    g_command_data.csq = MODEM4G_CSQ_UNKNOWN;
+    g_command_data.cereg = MODEM4G_REG_INVALID;
+    g_command_data.cgreg = MODEM4G_REG_INVALID;
+    g_command_data.creg = MODEM4G_REG_INVALID;
+}
+
 static void Modem4G_ResetCommandTracking(void)
 {
     g_command_issued = 0U;
     g_command_retry_count = 0U;
     g_retry_waiting = 0U;
+    Modem4G_ResetCommandData();
 }
 
 static void Modem4G_BeginBootSyncWindow(void)
@@ -440,9 +517,7 @@ static AT_CoreStartResult_T Modem4G_StartCoreCommand(const char *command,
 }
 
 static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
-                                                  const char *prefix,
-                                                  char *response,
-                                                  uint16_t response_capacity)
+                                                  const char *prefix)
 {
     AT_CoreStartResult_T start_result;
     AT_CoreResult_T result;
@@ -454,6 +529,7 @@ static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
             return MODEM4G_STEP_WAIT;
         }
 
+        Modem4G_ResetCommandData();
         start_result = Modem4G_StartCoreCommand(command, prefix, "OK", MODEM4G_AT_TIMEOUT_MS);
         if (start_result == AT_CORE_START_OK)
         {
@@ -466,7 +542,7 @@ static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
         }
         if (start_result == AT_CORE_START_TX_ERROR)
         {
-            (void)AT_Core_TakeResult(&g_at_core, 0, 0U);
+            (void)AT_Core_TakeResult(&g_at_core);
             return MODEM4G_STEP_TX_ERROR;
         }
         return MODEM4G_STEP_ERROR;
@@ -477,7 +553,7 @@ static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
         return MODEM4G_STEP_WAIT;
     }
 
-    result = AT_Core_TakeResult(&g_at_core, response, response_capacity);
+    result = AT_Core_TakeResult(&g_at_core);
     g_command_issued = 0U;
     if (result == AT_CORE_RESULT_OK)
     {
@@ -511,10 +587,6 @@ static uint8_t Modem4G_HandleRetryableFailure(void)
 static void Modem4G_ProcessStateMachine(void)
 {
     Modem4G_CommandStep_T step;
-    char response[MODEM4G_RESPONSE_MAX];
-    uint8_t value;
-
-    response[0] = '\0';
 
     switch (g_status.state)
     {
@@ -540,10 +612,10 @@ static void Modem4G_ProcessStateMachine(void)
             break;
 
         case MODEM4G_STATE_AT_SYNC:
-            step = Modem4G_CommandStep("AT", 0, response, sizeof(response));
+            step = Modem4G_CommandStep("AT", 0);
             if (step == MODEM4G_STEP_OK)
             {
-                Modem4G_SetState(MODEM4G_STATE_ECHO_OFF);
+                Modem4G_SetState(MODEM4G_STATE_RESULT_CODES_ON);
             }
             else if ((step == MODEM4G_STEP_ERROR) || (step == MODEM4G_STEP_TIMEOUT) ||
                      (step == MODEM4G_STEP_TX_ERROR))
@@ -559,8 +631,42 @@ static void Modem4G_ProcessStateMachine(void)
             }
             break;
 
+        case MODEM4G_STATE_RESULT_CODES_ON:
+            /* Keep final result codes enabled; ATQ1 would make completion ambiguous. */
+            step = Modem4G_CommandStep("ATQ0", 0);
+            if (step == MODEM4G_STEP_OK)
+            {
+                Modem4G_SetState(MODEM4G_STATE_VERBOSE_MODE);
+            }
+            else if ((step == MODEM4G_STEP_ERROR) || (step == MODEM4G_STEP_TIMEOUT) ||
+                     (step == MODEM4G_STEP_TX_ERROR))
+            {
+                (void)Modem4G_HandleRetryableFailure();
+            }
+            else
+            {
+            }
+            break;
+
+        case MODEM4G_STATE_VERBOSE_MODE:
+            /* Force text final result codes such as OK/ERROR/NO CARRIER. */
+            step = Modem4G_CommandStep("ATV1", 0);
+            if (step == MODEM4G_STEP_OK)
+            {
+                Modem4G_SetState(MODEM4G_STATE_ECHO_OFF);
+            }
+            else if ((step == MODEM4G_STEP_ERROR) || (step == MODEM4G_STEP_TIMEOUT) ||
+                     (step == MODEM4G_STEP_TX_ERROR))
+            {
+                (void)Modem4G_HandleRetryableFailure();
+            }
+            else
+            {
+            }
+            break;
+
         case MODEM4G_STATE_ECHO_OFF:
-            step = Modem4G_CommandStep("ATE0", 0, response, sizeof(response));
+            step = Modem4G_CommandStep("ATE0", 0);
             if (step == MODEM4G_STEP_OK)
             {
                 Modem4G_SetState(MODEM4G_STATE_SIM_CHECK);
@@ -576,11 +682,14 @@ static void Modem4G_ProcessStateMachine(void)
             break;
 
         case MODEM4G_STATE_SIM_CHECK:
-            step = Modem4G_CommandStep("AT+CPIN?", "+CPIN:", response, sizeof(response));
+            step = Modem4G_CommandStep("AT+CPIN?", "+CPIN:");
             if (step == MODEM4G_STEP_OK)
             {
-                g_command_retry_count = 0U;
-                if (Modem4G_IsCpinReady(response) != 0U)
+                if (g_command_data.cpin_seen == 0U)
+                {
+                    (void)Modem4G_HandleRetryableFailure();
+                }
+                else if (g_command_data.cpin_ready != 0U)
                 {
                     g_status.sim_ready = 1U;
                     Modem4G_SetState(MODEM4G_STATE_SIGNAL_CHECK);
@@ -609,15 +718,15 @@ static void Modem4G_ProcessStateMachine(void)
             break;
 
         case MODEM4G_STATE_SIGNAL_CHECK:
-            step = Modem4G_CommandStep("AT+CSQ", "+CSQ:", response, sizeof(response));
+            step = Modem4G_CommandStep("AT+CSQ", "+CSQ:");
             if (step == MODEM4G_STEP_OK)
             {
                 g_status.csq = MODEM4G_CSQ_UNKNOWN;
                 g_status.csq_valid = 0U;
-                if (Modem4G_ParseCsq(response, &value) != 0U)
+                if (g_command_data.csq_seen != 0U)
                 {
-                    g_status.csq = value;
-                    if (value <= 31U)
+                    g_status.csq = g_command_data.csq;
+                    if (g_command_data.csq <= 31U)
                     {
                         g_status.csq_valid = 1U;
                     }
@@ -640,13 +749,13 @@ static void Modem4G_ProcessStateMachine(void)
             break;
 
         case MODEM4G_STATE_CEREG_CHECK:
-            step = Modem4G_CommandStep("AT+CEREG?", "+CEREG:", response, sizeof(response));
+            step = Modem4G_CommandStep("AT+CEREG?", "+CEREG:");
             if (step == MODEM4G_STEP_OK)
             {
                 g_status.cereg = MODEM4G_REG_INVALID;
-                if (Modem4G_ParseRegistration(response, &value) != 0U)
+                if (g_command_data.cereg_seen != 0U)
                 {
-                    g_status.cereg = value;
+                    g_status.cereg = g_command_data.cereg;
                 }
                 Modem4G_UpdateRegistered();
                 if (g_status.registered != 0U)
@@ -674,13 +783,13 @@ static void Modem4G_ProcessStateMachine(void)
             break;
 
         case MODEM4G_STATE_CGREG_CHECK:
-            step = Modem4G_CommandStep("AT+CGREG?", "+CGREG:", response, sizeof(response));
+            step = Modem4G_CommandStep("AT+CGREG?", "+CGREG:");
             if (step == MODEM4G_STEP_OK)
             {
                 g_status.cgreg = MODEM4G_REG_INVALID;
-                if (Modem4G_ParseRegistration(response, &value) != 0U)
+                if (g_command_data.cgreg_seen != 0U)
                 {
-                    g_status.cgreg = value;
+                    g_status.cgreg = g_command_data.cgreg;
                 }
                 Modem4G_UpdateRegistered();
                 if (g_status.registered != 0U)
@@ -708,13 +817,13 @@ static void Modem4G_ProcessStateMachine(void)
             break;
 
         case MODEM4G_STATE_CREG_CHECK:
-            step = Modem4G_CommandStep("AT+CREG?", "+CREG:", response, sizeof(response));
+            step = Modem4G_CommandStep("AT+CREG?", "+CREG:");
             if (step == MODEM4G_STEP_OK)
             {
                 g_status.creg = MODEM4G_REG_INVALID;
-                if (Modem4G_ParseRegistration(response, &value) != 0U)
+                if (g_command_data.creg_seen != 0U)
                 {
-                    g_status.creg = value;
+                    g_status.creg = g_command_data.creg;
                 }
                 Modem4G_UpdateRegistered();
                 if (g_status.registered != 0U)
@@ -889,9 +998,9 @@ AT_CoreResult_T Modem4G_PeekResult(void)
     return AT_Core_PeekResult(&g_at_core);
 }
 
-AT_CoreResult_T Modem4G_TakeResult(char *response, uint16_t response_capacity)
+AT_CoreResult_T Modem4G_TakeResult(void)
 {
-    return AT_Core_TakeResult(&g_at_core, response, response_capacity);
+    return AT_Core_TakeResult(&g_at_core);
 }
 
 const AT_CoreStats_T *Modem4G_GetAtStats(void)

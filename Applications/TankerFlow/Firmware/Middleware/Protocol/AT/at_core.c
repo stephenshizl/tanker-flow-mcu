@@ -136,28 +136,14 @@ static uint8_t AtCore_IsErrorLine(const char *line, uint16_t length)
     {
         return 1U;
     }
-    if (AtCore_LineEquals(line, length, "NO CARRIER") != 0U)
+    if ((AtCore_LineEquals(line, length, "NO CARRIER") != 0U) ||
+        (AtCore_LineEquals(line, length, "BUSY") != 0U) ||
+        (AtCore_LineEquals(line, length, "NO ANSWER") != 0U) ||
+        (AtCore_LineEquals(line, length, "NO DIALTONE") != 0U))
     {
         return 1U;
     }
     return 0U;
-}
-
-static void AtCore_CopyResponseCapture(AT_Core_T *core, const char *line, uint16_t length)
-{
-    uint16_t copy_length;
-
-    copy_length = length;
-    if (copy_length >= AT_CORE_CAPTURE_MAX)
-    {
-        copy_length = AT_CORE_CAPTURE_MAX - 1U;
-    }
-
-    if (copy_length > 0U)
-    {
-        AtCore_CopyBytes(core->response_capture, line, copy_length);
-    }
-    core->response_capture[copy_length] = '\0';
 }
 
 static void AtCore_Complete(AT_Core_T *core, AT_CoreResult_T result)
@@ -198,7 +184,7 @@ static void AtCore_HandleUrc(AT_Core_T *core, const char *line, uint16_t length)
 static void AtCore_HandleResponse(AT_Core_T *core, const char *line, uint16_t length)
 {
     core->stats.response_lines++;
-    AtCore_CopyResponseCapture(core, line, length);
+    core->stats.response_bytes += length;
     if (core->on_response != 0)
     {
         core->on_response(line, length, core->user);
@@ -235,7 +221,7 @@ static void AtCore_HandleLine(AT_Core_T *core)
 
     if (AtCore_IsErrorLine(core->line, length) != 0U)
     {
-        AtCore_CopyResponseCapture(core, core->line, length);
+        /* Error final result codes terminate the transaction. */
         AtCore_Complete(core, AT_CORE_RESULT_ERROR);
         return;
     }
@@ -343,7 +329,6 @@ AT_CoreStartResult_T AT_Core_StartCommand(AT_Core_T *core, const AT_CoreCommand_
         return AT_CORE_START_INVALID;
     }
 
-    core->response_capture[0] = '\0';
     core->completed_result = AT_CORE_RESULT_NONE;
     core->command_timeout_ms = command->timeout_ms;
     core->command_start_ms = core->now_ms(core->user);
@@ -462,10 +447,9 @@ AT_CoreResult_T AT_Core_PeekResult(const AT_Core_T *core)
     return core->completed_result;
 }
 
-AT_CoreResult_T AT_Core_TakeResult(AT_Core_T *core, char *response, uint16_t response_capacity)
+AT_CoreResult_T AT_Core_TakeResult(AT_Core_T *core)
 {
     AT_CoreResult_T result;
-    uint16_t length;
 
     if (core == 0)
     {
@@ -473,20 +457,6 @@ AT_CoreResult_T AT_Core_TakeResult(AT_Core_T *core, char *response, uint16_t res
     }
 
     result = core->completed_result;
-    if ((response != 0) && (response_capacity > 0U))
-    {
-        length = AtCore_StringLength(core->response_capture, AT_CORE_CAPTURE_MAX);
-        if (length >= response_capacity)
-        {
-            length = response_capacity - 1U;
-        }
-        if (length > 0U)
-        {
-            AtCore_CopyBytes(response, core->response_capture, length);
-        }
-        response[length] = '\0';
-    }
-
     if (result != AT_CORE_RESULT_NONE)
     {
         core->completed_result = AT_CORE_RESULT_NONE;

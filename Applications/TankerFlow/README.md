@@ -1,6 +1,6 @@
-# TankerFlow APM32F030RC Firmware
+# TankerFlow portable firmware / APM32F030RC reference port
 
-## Phase-3D baseline: MC610 power-on and network-registration state machine
+## Phase-3D Fix1 baseline: streamed AT responses and deterministic result-code mode
 
 Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/Keil project hierarchy.  The scope is limited to MC610 hardware power-key/reset sequencing plus a non-blocking AT/SIM/signal/network-registration state machine.  Bootloader, OTA/FOTA, TCP/MQTT sessions, server upload, Bluetooth business protocol, flowmeter protocol and tanker business logic remain out of scope.
 
@@ -10,7 +10,7 @@ Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/K
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.3-phase3d`
+- App version: `0.3.4-phase3d-fix1`
 
 ### Frozen board mapping
 
@@ -46,8 +46,8 @@ Power-on timing follows the MC610 hardware guide:
 `Modem4G_Start()` starts the sequence. `Modem4G_Process()` remains non-blocking and advances through:
 
 ```text
-VBAT_SETTLE -> PWRKEY_ASSERT -> AT_SYNC -> ATE0 -> CPIN -> CSQ
-             -> CEREG -> CGREG -> CREG -> REG_WAIT/READY
+VBAT_SETTLE -> PWRKEY_ASSERT -> AT_SYNC -> ATQ0 -> ATV1 -> ATE0
+             -> CPIN -> CSQ -> CEREG -> CGREG -> CREG -> REG_WAIT/READY
 ```
 
 Registration value `1` (home) or `5` (roaming) is treated as registered. `CEREG` is checked first, with `CGREG`/`CREG` fallback so LTE and GSM registration domains are both covered. A missing/not-ready SIM is polled without repeatedly resetting the modem. Network search is also polled without treating lack of service as a modem crash. AT transport timeouts are treated separately from network-registration delay.
@@ -62,9 +62,11 @@ The state machine uses fixed storage only, performs no delay loop, and keeps all
   - fixed static storage only; no `malloc`;
   - accepts arbitrary RX chunks from DMA/ring-buffer foreground processing;
   - frames CR/LF AT lines, handles split/concatenated responses and recovers after overlength lines;
-  - suppresses command echo and recognizes `OK`, `ERROR`, `+CME ERROR`, `+CMS ERROR` and `NO CARRIER`;
+  - suppresses command echo and recognizes `OK`, `ERROR`, `+CME ERROR`, `+CMS ERROR`, `NO CARRIER`, `BUSY`, `NO ANSWER` and `NO DIALTONE`;
+  - streams every response line to the device driver immediately instead of accumulating the complete response in RAM;
   - supports a per-command response prefix so query responses such as `+CEREG:` are not misclassified as URCs;
-  - supports a configurable success token for later prompt-based commands;
+  - supports a configurable successful terminal token such as `OK`, `CONNECT` or bare prompt `>`;
+  - treats an asynchronous command's initial `OK` only as AT-command acceptance; the device driver must wait for the documented later URC/result indication;
   - uses wrap-safe millisecond timeout checks and never busy-waits for a response.
 - `Drivers/Modem/MC610/modem_4g.*`: TankerFlow adapter for USART3 and SysTick.
   - consumes `BSP_UART_4G` in the foreground; ISR/DMA code remains protocol-free;
@@ -73,9 +75,36 @@ The state machine uses fixed storage only, performs no delay loop, and keeps all
   - deliberately does not start a power-on sequence or issue AT commands automatically at boot.
 - `Firmware/Tests/at_core_host_test.c`: host-side regression vectors for echo/no-echo responses, response-prefix matching, URC interleaving, errors, timeout, TX failure, custom success token, oversized-line recovery and an approximately 1 KB `+MIPRTCP` URC.
 
-The AT receive line capacity is intentionally sized to 1200 bytes so the core can carry the project's later MC610 hex-mode `+MIPRTCP` receive indication without immediately forcing a second framing design.  Phase-3C only transports/classifies this URC; TCP payload decoding and business framing are deferred.
+The AT receive line capacity is a **per-line** limit of 1200 bytes, not a whole-command-response buffer. A query can therefore return many lines and more than 1 KB in total without allocating a 1 KB aggregate response buffer. For future TCP payloads that can exceed one AT line, the planned MC610 data path will use length-delimited/raw-data handling (`MIPREAD`/data mode) rather than enlarging the control-plane line buffer indefinitely.
 
 This phase keeps the useful separation from the earlier 4G relay project's `dtu_at.c` (send command, match result, keep background processing alive) but replaces its single blocking RX snapshot with a non-blocking line-oriented core suitable for the TankerFlow main loop.
+
+### Portable architecture rule (APM32 / STM32 / HC32)
+
+Reusable business/protocol code must not include an MCU vendor HAL header. The target layering is:
+
+```text
+Application / tanker business state machine
+        |
+Services: cellular / location / flowmeter
+        |
+Portable device drivers: MC610 / ATGM336 / flowmeter
+        |
+Portable protocol middleware: AT / NMEA / Modbus-RTU / CRC
+        |
+Port interfaces: UART stream / time / GPIO control / RS485 direction / I2C / ADC
+        |
+BSP port: APM32F0 | STM32 | HC32F460 | host-test mock
+```
+
+`Middleware/Protocol/AT/at_core.*` and `Middleware/Protocol/NMEA/nmea_parser.*` are already MCU-independent. The next architecture refactor will remove direct `bsp_*` dependencies from `MC610`, `ATGM336` and the future flowmeter driver by injecting small port-function tables. After that, migration to STM32 or HC32 should require a new BSP/port implementation, while protocol, device-state-machine and application code remain unchanged.
+
+AT completion is deliberately split into two levels:
+
+1. **AT transaction completion**: a documented final token (`OK`, `CONNECT`, prompt `>`, or an error result code).
+2. **Device operation completion**: for asynchronous commands, a later command-specific URC/result such as `+MIPCALL`, `+MIPOPEN`, `+MIPNTP` or `+MPINGSTAT`.
+
+The MC610 startup forces `ATQ0` and `ATV1` before normal queries, so the parser can rely on verbose result codes being enabled. `ATQ1` is intentionally not used because suppressing result codes removes a generic transaction-completion marker.
 
 ### Phase-3B GNSS parser
 

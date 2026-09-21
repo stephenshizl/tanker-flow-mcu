@@ -3,10 +3,16 @@
 
 #include <stdint.h>
 
+/*
+ * Line-oriented AT control-plane parser.
+ *
+ * AT_CORE_LINE_MAX is a per-line limit, not a whole-command-response limit.
+ * Response lines are delivered immediately through on_response(), so a command
+ * may return any number of lines without requiring an aggregate RX buffer.
+ */
 #define AT_CORE_LINE_MAX          (1200U)
 #define AT_CORE_COMMAND_MAX       (96U)
 #define AT_CORE_PREFIX_MAX        (48U)
-#define AT_CORE_CAPTURE_MAX       (192U)
 
 typedef enum
 {
@@ -29,6 +35,12 @@ typedef struct
 {
     const char *command;
     const char *response_prefix;
+    /*
+     * Terminates the AT transaction successfully. Typical values are "OK",
+     * "CONNECT" or ">".  For asynchronous modem operations, this token only
+     * means the command transaction was accepted; operation completion must be
+     * tracked by the device driver from its documented URC/result indication.
+     */
     const char *success_token;
     uint32_t timeout_ms;
 } AT_CoreCommand_T;
@@ -38,6 +50,7 @@ typedef struct
     uint32_t rx_bytes;
     uint32_t lines;
     uint32_t response_lines;
+    uint32_t response_bytes;
     uint32_t urc_lines;
     uint32_t echo_lines;
     uint32_t commands_started;
@@ -70,7 +83,6 @@ typedef struct
     char command[AT_CORE_COMMAND_MAX];
     char response_prefix[AT_CORE_PREFIX_MAX];
     char success_token[AT_CORE_PREFIX_MAX];
-    char response_capture[AT_CORE_CAPTURE_MAX];
 
     uint32_t command_start_ms;
     uint32_t command_timeout_ms;
@@ -92,7 +104,7 @@ void AT_Core_Feed(AT_Core_T *core, const uint8_t *data, uint16_t length);
 void AT_Core_Process(AT_Core_T *core);
 uint8_t AT_Core_IsBusy(const AT_Core_T *core);
 AT_CoreResult_T AT_Core_PeekResult(const AT_Core_T *core);
-AT_CoreResult_T AT_Core_TakeResult(AT_Core_T *core, char *response, uint16_t response_capacity);
+AT_CoreResult_T AT_Core_TakeResult(AT_Core_T *core);
 const AT_CoreStats_T *AT_Core_GetStats(const AT_Core_T *core);
 
 #endif /* AT_CORE_H */

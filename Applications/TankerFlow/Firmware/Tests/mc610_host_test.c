@@ -177,6 +177,25 @@ static void Test_RunToAtSync(void)
     Test_ExpectLastTx("AT\r\n");
 }
 
+static void Test_CompleteAtConfiguration(void)
+{
+    Test_Feed("AT\r\nOK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("ATQ0\r\n");
+
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("ATV1\r\n");
+
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("ATE0\r\n");
+
+    Test_Feed("ATE0\r\nOK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CPIN?\r\n");
+}
+
 static void Test_PowerSequence(void)
 {
     Test_ResetIo();
@@ -192,13 +211,7 @@ static void Test_HappyPathToReady(void)
     Test_ResetIo();
     Test_RunToAtSync();
 
-    Test_Feed("AT\r\nOK\r\n");
-    Modem4G_Process();
-    Test_ExpectLastTx("ATE0\r\n");
-
-    Test_Feed("ATE0\r\nOK\r\n");
-    Modem4G_Process();
-    Test_ExpectLastTx("AT+CPIN?\r\n");
+    Test_CompleteAtConfiguration();
 
     Test_Feed("+CPIN: READY\r\nOK\r\n");
     Modem4G_Process();
@@ -224,10 +237,7 @@ static void Test_SimWaitAndRecovery(void)
     Test_ResetIo();
     Test_RunToAtSync();
 
-    Test_Feed("OK\r\n");
-    Modem4G_Process();
-    Test_Feed("OK\r\n");
-    Modem4G_Process();
+    Test_CompleteAtConfiguration();
     Test_Feed("+CPIN: SIM PIN\r\nOK\r\n");
     CHECK_TRUE(Modem4G_GetState() == MODEM4G_STATE_SIM_WAIT);
 
@@ -248,10 +258,7 @@ static void Test_RegistrationFallbackAndUrc(void)
 
     Test_ResetIo();
     Test_RunToAtSync();
-    Test_Feed("OK\r\n");
-    Modem4G_Process();
-    Test_Feed("OK\r\n");
-    Modem4G_Process();
+    Test_CompleteAtConfiguration();
     Test_Feed("+CPIN: READY\r\nOK\r\n");
     Modem4G_Process();
     Test_Feed("+CSQ: 99,99\r\nOK\r\n");
@@ -282,10 +289,7 @@ static void Test_CgregFallbackRegistration(void)
 
     Test_ResetIo();
     Test_RunToAtSync();
-    Test_Feed("OK\r\n");
-    Modem4G_Process();
-    Test_Feed("OK\r\n");
-    Modem4G_Process();
+    Test_CompleteAtConfiguration();
     Test_Feed("+CPIN: READY\r\nOK\r\n");
     Modem4G_Process();
     Test_Feed("+CSQ: 12,99\r\nOK\r\n");
@@ -299,6 +303,28 @@ static void Test_CgregFallbackRegistration(void)
     CHECK_TRUE(status.cereg == 2U);
     CHECK_TRUE(status.cgreg == 1U);
     CHECK_TRUE(status.registered != 0U);
+}
+
+
+static void Test_ResponseLineCanArriveInFragments(void)
+{
+    Modem4G_Status_T status;
+
+    Test_ResetIo();
+    Test_RunToAtSync();
+    Test_CompleteAtConfiguration();
+
+    Test_Feed("+CP");
+    CHECK_TRUE(Modem4G_GetState() == MODEM4G_STATE_SIM_CHECK);
+    Test_Feed("IN: RE");
+    CHECK_TRUE(Modem4G_GetState() == MODEM4G_STATE_SIM_CHECK);
+    Test_Feed("ADY\r\n");
+    CHECK_TRUE(Modem4G_GetState() == MODEM4G_STATE_SIM_CHECK);
+    Test_Feed("OK\r\n");
+
+    CHECK_TRUE(Modem4G_GetState() == MODEM4G_STATE_SIGNAL_CHECK);
+    Modem4G_GetStatus(&status);
+    CHECK_TRUE(status.sim_ready != 0U);
 }
 
 static void Test_BootTimeoutUsesHardwareReset(void)
@@ -332,6 +358,7 @@ int main(void)
     Test_SimWaitAndRecovery();
     Test_RegistrationFallbackAndUrc();
     Test_CgregFallbackRegistration();
+    Test_ResponseLineCanArriveInFragments();
     Test_BootTimeoutUsesHardwareReset();
 
     if (g_failures != 0)

@@ -11,6 +11,8 @@ typedef enum
     MODEM4G_STATE_VBAT_SETTLE,
     MODEM4G_STATE_PWRKEY_ASSERT,
     MODEM4G_STATE_AT_SYNC,
+    MODEM4G_STATE_RESULT_CODES_ON,
+    MODEM4G_STATE_VERBOSE_MODE,
     MODEM4G_STATE_ECHO_OFF,
     MODEM4G_STATE_SIM_CHECK,
     MODEM4G_STATE_SIM_WAIT,
@@ -76,7 +78,7 @@ AT_CoreStartResult_T Modem4G_StartCommand(const char *command,
                                            uint32_t timeout_ms);
 uint8_t Modem4G_IsBusy(void);
 AT_CoreResult_T Modem4G_PeekResult(void);
-AT_CoreResult_T Modem4G_TakeResult(char *response, uint16_t response_capacity);
+AT_CoreResult_T Modem4G_TakeResult(void);
 const AT_CoreStats_T *Modem4G_GetAtStats(void);
 void Modem4G_GetStats(Modem4G_Stats_T *stats);
 uint16_t Modem4G_GetLastUrc(char *dst, uint16_t capacity);
