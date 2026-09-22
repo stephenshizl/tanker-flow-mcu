@@ -10,7 +10,7 @@ Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/K
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.6-phase3d-r3`
+- App version: `0.3.9-phase3e-c`
 
 ### Frozen board mapping
 
@@ -142,6 +142,33 @@ Platform/APM32 adapter
 APM32 BSP (UART / GPIO / Tick)
 ```
 
+
+
+### Phase-3E-C ZELZ Modbus-RTU protocol layer
+
+The reviewed ZELZ meter protocol is now implemented as two MCU-independent
+layers without changing application startup behavior. `Middleware/Protocol/Modbus/modbus_rtu.*`
+provides allocation-free Modbus RTU CRC16, function-03 request construction and
+response/exception validation. `Drivers/FlowMeter/ZELZ/zelz_flow_meter.*` binds
+that generic codec to the documented ZELZ register map.
+
+The current supported read-only realtime registers are:
+
+- `0x0000`, 2 registers: single/batch accumulated volume, raw unit `0.001 L`;
+- `0x0002`, 2 registers: total accumulated volume, raw unit `0.001 m3`;
+- `0x0004`, 2 registers: instantaneous flow, raw unit `0.001 m3/h`.
+
+ZELZ transmits each 32-bit value as low 16-bit word first while keeping high
+byte first inside each 16-bit word. For example, payload `61 4E 00 BC` decodes
+to `0x00BC614E` = `12345678` raw units. Firmware therefore keeps scaled integer
+values and does not use `float` or `double`. A combined realtime query reads
+registers `0x0000..0x0005` in one function-03 request, matching the protocol
+manual's recommended Modbus Poll setup.
+
+This phase does not start periodic polling from `main()`, does not power the
+meter automatically and does not write the address/configuration register at
+`0x0006`. The next phase should add a non-blocking request/timeout/retry service
+above `FlowMeter_SendFrame()`/`FlowMeter_ReadFrame()` using these protocol codecs.
 
 ### Phase-3E-B portable flow-meter RS485 transport driver
 
@@ -280,6 +307,9 @@ gcc -std=c99 -Wall -Wextra -Werror -IInclude -IPlatform/Port -IDrivers/GNSS/ATGM
 
 gcc -std=c99 -Wall -Wextra -Werror -IMiddleware/Protocol/AT Tests/at_core_host_test.c Middleware/Protocol/AT/at_core.c -o at_core_host_test
 ./at_core_host_test
+
+gcc -std=c99 -Wall -Wextra -Werror -IMiddleware/Protocol/Modbus -IDrivers/FlowMeter/ZELZ Tests/zelz_flow_meter_host_test.c Middleware/Protocol/Modbus/modbus_rtu.c Drivers/FlowMeter/ZELZ/zelz_flow_meter.c -o zelz_flow_meter_host_test
+./zelz_flow_meter_host_test
 
 gcc -std=c99 -Wall -Wextra -Werror -IInclude -IPlatform/Port -IDrivers/Modem/MC610 -IMiddleware/Protocol/AT Tests/mc610_host_test.c Drivers/Modem/MC610/modem_4g.c Middleware/Protocol/AT/at_core.c -o mc610_host_test
 ./mc610_host_test
