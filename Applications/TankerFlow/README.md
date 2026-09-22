@@ -1,6 +1,6 @@
 # TankerFlow portable firmware / APM32F030RC reference port
 
-## Phase-3D Fix1 baseline: streamed AT responses and deterministic result-code mode
+## Phase-3D R2-B baseline: MC610 transaction API and URC dispatcher
 
 Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/Keil project hierarchy.  The scope is limited to MC610 hardware power-key/reset sequencing plus a non-blocking AT/SIM/signal/network-registration state machine.  Bootloader, OTA/FOTA, TCP/MQTT sessions, server upload, Bluetooth business protocol, flowmeter protocol and tanker business logic remain out of scope.
 
@@ -10,7 +10,7 @@ Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/K
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.4-phase3d-fix1`
+- App version: `0.3.5-phase3d-r2b`
 
 ### Frozen board mapping
 
@@ -47,7 +47,8 @@ Power-on timing follows the MC610 hardware guide:
 
 ```text
 VBAT_SETTLE -> PWRKEY_ASSERT -> AT_SYNC -> ATQ0 -> ATV1 -> ATE0
-             -> CPIN -> CSQ -> CEREG -> CGREG -> CREG -> REG_WAIT/READY
+             -> CEREG=1 -> CGREG=1 -> CREG=1
+             -> CPIN -> CSQ -> CEREG? -> CGREG? -> CREG? -> REG_WAIT/READY
 ```
 
 Registration value `1` (home) or `5` (roaming) is treated as registered. `CEREG` is checked first, with `CGREG`/`CREG` fallback so LTE and GSM registration domains are both covered. A missing/not-ready SIM is polled without repeatedly resetting the modem. Network search is also polled without treating lack of service as a modem crash. AT transport timeouts are treated separately from network-registration delay.
@@ -55,6 +56,14 @@ Registration value `1` (home) or `5` (roaming) is treated as registered. `CEREG`
 Public status is available through `Modem4G_GetStatus()` and `Modem4G_IsReady()`. The driver records SIM readiness, CSQ, CEREG/CGREG/CREG values, reset attempts and last successful AT time.
 
 The state machine uses fixed storage only, performs no delay loop, and keeps all parsing in foreground context.
+
+### Phase-3D R2-B MC610 transaction/URC integration
+
+The MC610 driver now starts its initialization commands through `AT_Core_StartTransaction()` using explicit `SYNC_OK` descriptors rather than the legacy success-token path.  A public `Modem4G_StartTransaction()` wrapper exposes the same transaction model for later TCP/IP work while the legacy `Modem4G_StartCommand()` API remains available for compatibility.
+
+MC610 unsolicited traffic is routed by a small static prefix table in flash.  The current project registers only relevant control-plane indications: `CEREG/CGREG/CREG`, Fibocom startup indications (`AT READY`, `+SIM READY`), and MIP/TCP/UDP events needed by later socket work.  SMS/voice URCs are intentionally not added because this product does not use those services.  Registration URCs are enabled on a best-effort basis with `AT+CEREG=1`, `AT+CGREG=1` and `AT+CREG=1`; polling remains the fallback if any enable command is unsupported or fails.
+
+An asynchronous transaction may therefore remain busy after its initial `OK`, while unrelated URCs continue to update modem status.  A matching asynchronous execution-result event completes the transaction through the R2-A matcher callback.  No aggregate AT response buffer is introduced.
 
 ### Phase-3C 4G AT core
 

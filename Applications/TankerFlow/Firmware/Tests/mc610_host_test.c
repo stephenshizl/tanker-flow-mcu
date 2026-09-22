@@ -82,6 +82,18 @@ static void Test_ExpectLastTx(const char *command)
     }
 }
 
+static uint8_t Test_MatchMipcall(const char *line, uint16_t length, void *user)
+{
+    static const char prefix[] = "+MIPCALL:";
+
+    (void)user;
+    if (length < (uint16_t)(sizeof(prefix) - 1U))
+    {
+        return 0U;
+    }
+    return (memcmp(line, prefix, sizeof(prefix) - 1U) == 0) ? 1U : 0U;
+}
+
 uint32_t BSP_Tick_GetMs(void)
 {
     return g_io.now_ms;
@@ -192,6 +204,18 @@ static void Test_CompleteAtConfiguration(void)
     Test_ExpectLastTx("ATE0\r\n");
 
     Test_Feed("ATE0\r\nOK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CEREG=1\r\n");
+
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CGREG=1\r\n");
+
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CREG=1\r\n");
+
+    Test_Feed("OK\r\n");
     Modem4G_Process();
     Test_ExpectLastTx("AT+CPIN?\r\n");
 }
@@ -327,6 +351,97 @@ static void Test_ResponseLineCanArriveInFragments(void)
     CHECK_TRUE(status.sim_ready != 0U);
 }
 
+static void Test_UrcEnableFailureIsNonFatal(void)
+{
+    Test_ResetIo();
+    Test_RunToAtSync();
+
+    Test_Feed("AT\r\nOK\r\n");
+    Modem4G_Process();
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CEREG=1\r\n");
+
+    Test_Feed("ERROR\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CGREG=1\r\n");
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CREG=1\r\n");
+    Test_Feed("OK\r\n");
+    Modem4G_Process();
+    Test_ExpectLastTx("AT+CPIN?\r\n");
+}
+
+static void Test_UrcDispatcherWhileIdle(void)
+{
+    Modem4G_Status_T status;
+    Modem4G_Stats_T stats;
+
+    Test_ResetIo();
+    Modem4G_Init();
+
+    Test_Feed("AT READY\r\n+SIM READY\r\n");
+    Modem4G_GetStatus(&status);
+    Modem4G_GetStats(&stats);
+    CHECK_TRUE(status.alive != 0U);
+    CHECK_TRUE(status.sim_ready != 0U);
+    CHECK_TRUE(stats.startup_urc_count == 2U);
+
+    Test_Feed("+MIPRTCP: 1,0,3132\r\n");
+    Test_Feed("+MIPRUDP: 1.2.3.4,1234,1,0,3132\r\n");
+    Test_Feed("+MIPSTAT: 1,2\r\n");
+    Test_Feed("+UNKNOWN: 1\r\n");
+    Modem4G_GetStats(&stats);
+    CHECK_TRUE(stats.miprtcp_count == 1U);
+    CHECK_TRUE(stats.miprudp_count == 1U);
+    CHECK_TRUE(stats.mipstat_count == 1U);
+    CHECK_TRUE(stats.tcp_event_urc_count == 1U);
+    CHECK_TRUE(stats.unknown_urc_count == 1U);
+}
+
+static void Test_AsyncTransactionKeepsUnrelatedUrcSeparate(void)
+{
+    AT_CoreTransaction_T transaction;
+    Modem4G_Status_T status;
+
+    Test_ResetIo();
+    Test_RunToAtSync();
+    Test_CompleteAtConfiguration();
+    Test_Feed("+CPIN: READY\r\nOK\r\n");
+    Modem4G_Process();
+    Test_Feed("+CSQ: 18,99\r\nOK\r\n");
+    Modem4G_Process();
+    Test_Feed("+CEREG: 0,1\r\nOK\r\n");
+    CHECK_TRUE(Modem4G_IsReady() != 0U);
+
+    transaction.command = "AT+MIPCALL=1";
+    transaction.response_prefix = 0;
+    transaction.type = AT_CORE_TRANSACTION_ASYNC_OK;
+    transaction.response_timeout_ms = 1000U;
+    transaction.operation_timeout_ms = 30000U;
+    transaction.async_match = Test_MatchMipcall;
+
+    CHECK_TRUE(Modem4G_StartTransaction(&transaction) == AT_CORE_START_OK);
+    Test_ExpectLastTx("AT+MIPCALL=1\r\n");
+    Test_Feed("OK\r\n");
+    CHECK_TRUE(Modem4G_IsBusy() != 0U);
+
+    Test_Feed("+CEREG: 5\r\n");
+    CHECK_TRUE(Modem4G_IsBusy() != 0U);
+    Modem4G_GetStatus(&status);
+    CHECK_TRUE(status.cereg == 5U);
+    CHECK_TRUE(status.registered != 0U);
+
+    Test_Feed("+MIPCALL:10.1.2.3\r\n");
+    CHECK_TRUE(Modem4G_IsBusy() == 0U);
+    CHECK_TRUE(Modem4G_TakeResult() == AT_CORE_RESULT_ASYNC_EVENT);
+}
+
 static void Test_BootTimeoutUsesHardwareReset(void)
 {
     Test_ResetIo();
@@ -359,6 +474,9 @@ int main(void)
     Test_RegistrationFallbackAndUrc();
     Test_CgregFallbackRegistration();
     Test_ResponseLineCanArriveInFragments();
+    Test_UrcEnableFailureIsNonFatal();
+    Test_UrcDispatcherWhileIdle();
+    Test_AsyncTransactionKeepsUnrelatedUrcSeparate();
     Test_BootTimeoutUsesHardwareReset();
 
     if (g_failures != 0)

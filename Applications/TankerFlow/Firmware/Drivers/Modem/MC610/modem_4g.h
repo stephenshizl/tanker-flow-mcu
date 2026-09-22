@@ -14,6 +14,9 @@ typedef enum
     MODEM4G_STATE_RESULT_CODES_ON,
     MODEM4G_STATE_VERBOSE_MODE,
     MODEM4G_STATE_ECHO_OFF,
+    MODEM4G_STATE_CEREG_URC_ENABLE,
+    MODEM4G_STATE_CGREG_URC_ENABLE,
+    MODEM4G_STATE_CREG_URC_ENABLE,
     MODEM4G_STATE_SIM_CHECK,
     MODEM4G_STATE_SIM_WAIT,
     MODEM4G_STATE_SIGNAL_CHECK,
@@ -56,8 +59,12 @@ typedef struct
 {
     uint32_t urc_count;
     uint32_t miprtcp_count;
+    uint32_t miprudp_count;
     uint32_t mipstat_count;
+    uint32_t tcp_event_urc_count;
     uint32_t network_urc_count;
+    uint32_t startup_urc_count;
+    uint32_t unknown_urc_count;
     uint32_t power_on_count;
     uint32_t reset_count;
     uint32_t state_transitions;
@@ -72,6 +79,7 @@ uint8_t Modem4G_IsReady(void);
 Modem4G_State_T Modem4G_GetState(void);
 void Modem4G_GetStatus(Modem4G_Status_T *status);
 
+AT_CoreStartResult_T Modem4G_StartTransaction(const AT_CoreTransaction_T *transaction);
 AT_CoreStartResult_T Modem4G_StartCommand(const char *command,
                                            const char *response_prefix,
                                            const char *success_token,

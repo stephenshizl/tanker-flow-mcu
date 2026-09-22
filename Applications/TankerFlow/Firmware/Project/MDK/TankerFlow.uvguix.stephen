@@ -1928,9 +1928,9 @@
       </Doc>
       <Doc>
         <Name>..\..\Middleware\Protocol\AT\at_core.c</Name>
-        <ColumnNumber>19</ColumnNumber>
+        <ColumnNumber>10</ColumnNumber>
         <TopLine>340</TopLine>
-        <CurrentLine>374</CurrentLine>
+        <CurrentLine>376</CurrentLine>
         <Folding>1</Folding>
         <ContractedFolders></ContractedFolders>
         <PaneID>0</PaneID>

@@ -47,6 +47,51 @@ typedef struct
     uint8_t creg;
 } Modem4G_CommandData_T;
 
+typedef void (*Modem4G_UrcHandlerFn)(const char *line, uint16_t length);
+
+typedef struct
+{
+    const char *prefix;
+    Modem4G_UrcHandlerFn handler;
+} Modem4G_UrcRoute_T;
+
+static void Modem4G_HandleNetworkUrc(const char *line, uint16_t length);
+static void Modem4G_HandleStartupUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipTcpRxUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipUdpRxUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipStatUrc(const char *line, uint16_t length);
+static void Modem4G_HandleTcpEventUrc(const char *line, uint16_t length);
+
+static const Modem4G_UrcRoute_T g_urc_routes[] =
+{
+    { "+CEREG:", Modem4G_HandleNetworkUrc },
+    { "+CGREG:", Modem4G_HandleNetworkUrc },
+    { "+CREG:", Modem4G_HandleNetworkUrc },
+    { "AT READY", Modem4G_HandleStartupUrc },
+    { "+SIM READY", Modem4G_HandleStartupUrc },
+    { "RDY", Modem4G_HandleStartupUrc },
+    { "PB DONE", Modem4G_HandleStartupUrc },
+    { "SMS Ready", Modem4G_HandleStartupUrc },
+    { "Call Ready", Modem4G_HandleStartupUrc },
+    { "+MIPRTCP:", Modem4G_HandleMipTcpRxUrc },
+    { "+MIPRUDP:", Modem4G_HandleMipUdpRxUrc },
+    { "+MIPSTAT:", Modem4G_HandleMipStatUrc },
+    { "+MIPCALL:", Modem4G_HandleTcpEventUrc },
+    { "+MIPOPEN:", Modem4G_HandleTcpEventUrc },
+    { "+MIPCLOSE:", Modem4G_HandleTcpEventUrc },
+    { "+MIPNTP:", Modem4G_HandleTcpEventUrc },
+    { "+MPING:", Modem4G_HandleTcpEventUrc },
+    { "+MPINGSTAT:", Modem4G_HandleTcpEventUrc },
+    { "+MIPXOFF", Modem4G_HandleTcpEventUrc },
+    { "+MIPXON", Modem4G_HandleTcpEventUrc },
+    { "+MIPDATA:", Modem4G_HandleTcpEventUrc },
+    { "+MIPPUSH:", Modem4G_HandleTcpEventUrc },
+    { "+MIPSEND:", Modem4G_HandleTcpEventUrc }
+};
+
+#define MODEM4G_URC_ROUTE_COUNT \
+    ((uint16_t)(sizeof(g_urc_routes) / sizeof(g_urc_routes[0])))
+
 static uint16_t Modem4G_StringLength(const char *text)
 {
     uint16_t length;
@@ -294,28 +339,24 @@ static uint8_t Modem4G_IsCpinReady(const char *line)
             (cursor[3] == 'D') && (cursor[4] == 'Y') && (cursor[5] == '\0')) ? 1U : 0U;
 }
 
+static const Modem4G_UrcRoute_T *Modem4G_FindUrcRoute(const char *line, uint16_t length)
+{
+    uint16_t index;
+
+    for (index = 0U; index < MODEM4G_URC_ROUTE_COUNT; index++)
+    {
+        if (Modem4G_StartsWith(line, length, g_urc_routes[index].prefix) != 0U)
+        {
+            return &g_urc_routes[index];
+        }
+    }
+    return 0;
+}
+
 static uint8_t Modem4G_IsKnownUrc(const char *line, uint16_t length, void *user)
 {
     (void)user;
-
-    if ((Modem4G_StartsWith(line, length, "+MIPRTCP:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+MIPSTAT") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+MIPCLOSE") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+MIPCALL:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+MIPOPEN:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+MIPNTP:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+MPINGSTAT:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+CEREG:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+CGREG:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "+CREG:") != 0U) ||
-        (Modem4G_StartsWith(line, length, "RDY") != 0U) ||
-        (Modem4G_StartsWith(line, length, "PB DONE") != 0U) ||
-        (Modem4G_StartsWith(line, length, "SMS Ready") != 0U) ||
-        (Modem4G_StartsWith(line, length, "Call Ready") != 0U))
-    {
-        return 1U;
-    }
-    return 0U;
+    return (Modem4G_FindUrcRoute(line, length) != 0) ? 1U : 0U;
 }
 
 static void Modem4G_OnResponse(const char *line, uint16_t length, void *user)
@@ -374,58 +415,92 @@ static void Modem4G_OnResponse(const char *line, uint16_t length, void *user)
     }
 }
 
+static void Modem4G_HandleNetworkUrc(const char *line, uint16_t length)
+{
+    uint8_t reg_status;
+
+    g_modem_stats.network_urc_count++;
+    if (Modem4G_ParseRegistration(line, &reg_status) == 0U)
+    {
+        return;
+    }
+
+    if (Modem4G_StartsWith(line, length, "+CEREG:") != 0U)
+    {
+        g_status.cereg = reg_status;
+    }
+    else if (Modem4G_StartsWith(line, length, "+CGREG:") != 0U)
+    {
+        g_status.cgreg = reg_status;
+    }
+    else if (Modem4G_StartsWith(line, length, "+CREG:") != 0U)
+    {
+        g_status.creg = reg_status;
+    }
+    else
+    {
+        return;
+    }
+
+    Modem4G_UpdateRegistered();
+}
+
+static void Modem4G_HandleStartupUrc(const char *line, uint16_t length)
+{
+    g_modem_stats.startup_urc_count++;
+    g_status.alive = 1U;
+
+    if (Modem4G_StartsWith(line, length, "+SIM READY") != 0U)
+    {
+        g_status.sim_ready = 1U;
+    }
+}
+
+static void Modem4G_HandleMipTcpRxUrc(const char *line, uint16_t length)
+{
+    (void)line;
+    (void)length;
+    g_modem_stats.miprtcp_count++;
+}
+
+static void Modem4G_HandleMipUdpRxUrc(const char *line, uint16_t length)
+{
+    (void)line;
+    (void)length;
+    g_modem_stats.miprudp_count++;
+}
+
+static void Modem4G_HandleMipStatUrc(const char *line, uint16_t length)
+{
+    (void)line;
+    (void)length;
+    g_modem_stats.mipstat_count++;
+    g_modem_stats.tcp_event_urc_count++;
+}
+
+static void Modem4G_HandleTcpEventUrc(const char *line, uint16_t length)
+{
+    (void)line;
+    (void)length;
+    g_modem_stats.tcp_event_urc_count++;
+}
+
 static void Modem4G_OnUrc(const char *line, uint16_t length, void *user)
 {
+    const Modem4G_UrcRoute_T *route;
     uint16_t copy_length;
-    uint8_t reg_status;
 
     (void)user;
     g_modem_stats.urc_count++;
 
-    if (Modem4G_StartsWith(line, length, "+MIPRTCP:") != 0U)
+    route = Modem4G_FindUrcRoute(line, length);
+    if ((route != 0) && (route->handler != 0))
     {
-        g_modem_stats.miprtcp_count++;
-    }
-    else if (Modem4G_StartsWith(line, length, "+MIPSTAT") != 0U)
-    {
-        g_modem_stats.mipstat_count++;
-    }
-    else if (Modem4G_StartsWith(line, length, "+CEREG:") != 0U)
-    {
-        g_modem_stats.network_urc_count++;
-        if (Modem4G_ParseRegistration(line, &reg_status) != 0U)
-        {
-            g_status.cereg = reg_status;
-            Modem4G_UpdateRegistered();
-        }
-    }
-    else if (Modem4G_StartsWith(line, length, "+CGREG:") != 0U)
-    {
-        g_modem_stats.network_urc_count++;
-        if (Modem4G_ParseRegistration(line, &reg_status) != 0U)
-        {
-            g_status.cgreg = reg_status;
-            Modem4G_UpdateRegistered();
-        }
-    }
-    else if (Modem4G_StartsWith(line, length, "+CREG:") != 0U)
-    {
-        g_modem_stats.network_urc_count++;
-        if (Modem4G_ParseRegistration(line, &reg_status) != 0U)
-        {
-            g_status.creg = reg_status;
-            Modem4G_UpdateRegistered();
-        }
-    }
-    else if ((Modem4G_StartsWith(line, length, "RDY") != 0U) ||
-             (Modem4G_StartsWith(line, length, "PB DONE") != 0U) ||
-             (Modem4G_StartsWith(line, length, "SMS Ready") != 0U) ||
-             (Modem4G_StartsWith(line, length, "Call Ready") != 0U))
-    {
-        g_status.alive = 1U;
+        route->handler(line, length);
     }
     else
     {
+        g_modem_stats.unknown_urc_count++;
     }
 
     copy_length = length;
@@ -502,18 +577,19 @@ static uint8_t Modem4G_RetryReady(void)
     return 1U;
 }
 
-static AT_CoreStartResult_T Modem4G_StartCoreCommand(const char *command,
-                                                       const char *response_prefix,
-                                                       const char *success_token,
-                                                       uint32_t timeout_ms)
+static AT_CoreStartResult_T Modem4G_StartSyncTransaction(const char *command,
+                                                           const char *response_prefix,
+                                                           uint32_t timeout_ms)
 {
-    AT_CoreCommand_T request;
+    AT_CoreTransaction_T transaction;
 
-    request.command = command;
-    request.response_prefix = response_prefix;
-    request.success_token = success_token;
-    request.timeout_ms = timeout_ms;
-    return AT_Core_StartCommand(&g_at_core, &request);
+    transaction.command = command;
+    transaction.response_prefix = response_prefix;
+    transaction.type = AT_CORE_TRANSACTION_SYNC_OK;
+    transaction.response_timeout_ms = timeout_ms;
+    transaction.operation_timeout_ms = 0U;
+    transaction.async_match = 0;
+    return AT_Core_StartTransaction(&g_at_core, &transaction);
 }
 
 static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
@@ -530,7 +606,7 @@ static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
         }
 
         Modem4G_ResetCommandData();
-        start_result = Modem4G_StartCoreCommand(command, prefix, "OK", MODEM4G_AT_TIMEOUT_MS);
+        start_result = Modem4G_StartSyncTransaction(command, prefix, MODEM4G_AT_TIMEOUT_MS);
         if (start_result == AT_CORE_START_OK)
         {
             g_command_issued = 1U;
@@ -669,7 +745,7 @@ static void Modem4G_ProcessStateMachine(void)
             step = Modem4G_CommandStep("ATE0", 0);
             if (step == MODEM4G_STEP_OK)
             {
-                Modem4G_SetState(MODEM4G_STATE_SIM_CHECK);
+                Modem4G_SetState(MODEM4G_STATE_CEREG_URC_ENABLE);
             }
             else if ((step == MODEM4G_STEP_ERROR) || (step == MODEM4G_STEP_TIMEOUT) ||
                      (step == MODEM4G_STEP_TX_ERROR))
@@ -678,6 +754,46 @@ static void Modem4G_ProcessStateMachine(void)
             }
             else
             {
+            }
+            break;
+
+        case MODEM4G_STATE_CEREG_URC_ENABLE:
+            /* Best-effort enable EPS registration URCs.  Failure is non-fatal;
+             * polling remains the fallback registration mechanism. */
+            step = Modem4G_CommandStep("AT+CEREG=1", 0);
+            if (step != MODEM4G_STEP_WAIT)
+            {
+                if (step != MODEM4G_STEP_OK)
+                {
+                    g_modem_stats.command_failures++;
+                }
+                Modem4G_SetState(MODEM4G_STATE_CGREG_URC_ENABLE);
+            }
+            break;
+
+        case MODEM4G_STATE_CGREG_URC_ENABLE:
+            /* Best-effort enable packet-domain registration URCs for fallback RATs. */
+            step = Modem4G_CommandStep("AT+CGREG=1", 0);
+            if (step != MODEM4G_STEP_WAIT)
+            {
+                if (step != MODEM4G_STEP_OK)
+                {
+                    g_modem_stats.command_failures++;
+                }
+                Modem4G_SetState(MODEM4G_STATE_CREG_URC_ENABLE);
+            }
+            break;
+
+        case MODEM4G_STATE_CREG_URC_ENABLE:
+            /* Best-effort enable CS-domain registration URCs. */
+            step = Modem4G_CommandStep("AT+CREG=1", 0);
+            if (step != MODEM4G_STEP_WAIT)
+            {
+                if (step != MODEM4G_STEP_OK)
+                {
+                    g_modem_stats.command_failures++;
+                }
+                Modem4G_SetState(MODEM4G_STATE_SIM_CHECK);
             }
             break;
 
@@ -973,10 +1089,7 @@ void Modem4G_GetStatus(Modem4G_Status_T *status)
     }
 }
 
-AT_CoreStartResult_T Modem4G_StartCommand(const char *command,
-                                           const char *response_prefix,
-                                           const char *success_token,
-                                           uint32_t timeout_ms)
+AT_CoreStartResult_T Modem4G_StartTransaction(const AT_CoreTransaction_T *transaction)
 {
     if ((g_status.state != MODEM4G_STATE_OFF) &&
         (g_status.state != MODEM4G_STATE_READY) &&
@@ -985,7 +1098,28 @@ AT_CoreStartResult_T Modem4G_StartCommand(const char *command,
         return AT_CORE_START_BUSY;
     }
 
-    return Modem4G_StartCoreCommand(command, response_prefix, success_token, timeout_ms);
+    return AT_Core_StartTransaction(&g_at_core, transaction);
+}
+
+AT_CoreStartResult_T Modem4G_StartCommand(const char *command,
+                                           const char *response_prefix,
+                                           const char *success_token,
+                                           uint32_t timeout_ms)
+{
+    AT_CoreCommand_T request;
+
+    if ((g_status.state != MODEM4G_STATE_OFF) &&
+        (g_status.state != MODEM4G_STATE_READY) &&
+        (g_status.state != MODEM4G_STATE_ERROR))
+    {
+        return AT_CORE_START_BUSY;
+    }
+
+    request.command = command;
+    request.response_prefix = response_prefix;
+    request.success_token = success_token;
+    request.timeout_ms = timeout_ms;
+    return AT_Core_StartCommand(&g_at_core, &request);
 }
 
 uint8_t Modem4G_IsBusy(void)
