@@ -22,6 +22,11 @@ void PlatformPort_ModemPowerKeyRelease(void);
 
 uint16_t PlatformPort_GnssRead(uint8_t *data, uint16_t max_length);
 
+/* Standardized complete-frame RX results used by all platform backends. */
+#define PLATFORM_PORT_FLOW_NO_FRAME              (0)
+#define PLATFORM_PORT_FLOW_ERR_BUFFER_TOO_SMALL (-1)
+#define PLATFORM_PORT_FLOW_ERR_IO               (-2)
+
 /*
  * Flow-meter transport primitives.
  *
@@ -30,6 +35,7 @@ uint16_t PlatformPort_GnssRead(uint8_t *data, uint16_t max_length);
  * can be layered above these primitives once the meter protocol is frozen.
  */
 int PlatformPort_FlowReadFrame(uint8_t *data, uint16_t capacity);
+/* Must return only after the final UART bit has left the transmitter. */
 uint16_t PlatformPort_FlowWrite(const uint8_t *data, uint16_t length);
 void PlatformPort_FlowSetPower(uint8_t enable);
 void PlatformPort_FlowTxEnablePinWrite(uint8_t high);

@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>BOARD_APM32F030_MINI,APM32F030xC</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS\ATGM336;..\..\Drivers\Modem\MC610;..\..\Middleware\Protocol\NMEA;..\..\Middleware\Protocol\AT;..\..\Platform\Port</IncludePath>
+              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS\ATGM336;..\..\Drivers\Modem\MC610;..\..\Drivers\FlowMeter;..\..\Middleware\Protocol\NMEA;..\..\Middleware\Protocol\AT;..\..\Platform\Port</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -792,6 +792,16 @@
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-FlowMeter</GroupName>
+          <Files>
+            <File>
+              <FileName>flow_meter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\FlowMeter\flow_meter.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1586,6 +1596,16 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>Drivers-FlowMeter</GroupName>
+          <Files>
+            <File>
+              <FileName>flow_meter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\FlowMeter\flow_meter.c</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
     <Target>
@@ -2377,6 +2397,16 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>Drivers-FlowMeter</GroupName>
+          <Files>
+            <File>
+              <FileName>flow_meter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\FlowMeter\flow_meter.c</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
     <Target>
@@ -3165,6 +3195,16 @@
               <FileName>nmea_parser.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Middleware\Protocol\NMEA\nmea_parser.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers-FlowMeter</GroupName>
+          <Files>
+            <File>
+              <FileName>flow_meter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\FlowMeter\flow_meter.c</FilePath>
             </File>
           </Files>
         </Group>

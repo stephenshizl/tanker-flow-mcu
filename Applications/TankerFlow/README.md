@@ -143,6 +143,31 @@ APM32 BSP (UART / GPIO / Tick)
 ```
 
 
+### Phase-3E-B portable flow-meter RS485 transport driver
+
+`Drivers/FlowMeter/flow_meter.*` now owns the MCU-independent half-duplex
+transport policy above `Platform/Port`. The driver remains protocol-agnostic:
+it does not assume Modbus RTU, a slave address, register map, CRC format, or
+application payload.
+
+RS485 DE//RE polarity is supplied at runtime through `FlowMeter_Rs485Config_T`.
+Until that configuration is provided, transmit requests are rejected instead
+of guessing board polarity. `FlowMeter_Init()` is allocation-free and does not
+power the meter or change the raw RS485 pins. After configuration, TX uses the
+sequence RX-disable -> TX-enable -> blocking UART write-through-TXC ->
+TX-disable -> RX-enable, and receive consumes complete frames already delimited
+by the platform T3.5 detector.
+
+The driver also exposes explicit meter power control, direction/insert inputs
+and lightweight TX/RX/error statistics. `Tests/flow_meter_host_test.c` validates
+polarity configuration, TX direction sequencing, error recovery, complete-frame
+RX, input forwarding and statistics without MCU hardware.
+
+Phase-3E-B compiles the portable driver into the APM32F030RC target but does
+not yet call it from application startup, power the meter on, configure RS485
+polarity, or send any command. Meter protocol and business logic remain
+deferred until the real protocol/register definition is reviewed.
+
 ### Phase-3E-A flow-meter portable transport interface
 
 The flow-meter hardware path is now exposed through the MCU-independent
