@@ -1,8 +1,6 @@
 #include "modem_4g.h"
 
-#include "bsp_gpio.h"
-#include "bsp_tick.h"
-#include "bsp_uart.h"
+#include "platform_port.h"
 
 #define MODEM4G_READ_CHUNK_SIZE         (128U)
 #define MODEM4G_LAST_URC_MAX            (128U)
@@ -169,20 +167,19 @@ static uint8_t Modem4G_StringStartsWith(const char *text, const char *prefix)
 
 static uint8_t Modem4G_IsElapsed(uint32_t start_ms, uint32_t period_ms)
 {
-    return ((uint32_t)(BSP_Tick_GetMs() - start_ms) >= period_ms) ? 1U : 0U;
+    return ((uint32_t)(PlatformPort_GetMs() - start_ms) >= period_ms) ? 1U : 0U;
 }
 
 static uint16_t Modem4G_Tx(const uint8_t *data, uint16_t length, void *user)
 {
     (void)user;
-    BSP_Uart_Write(BSP_UART_4G, data, length);
-    return length;
+    return PlatformPort_ModemWrite(data, length);
 }
 
 static uint32_t Modem4G_NowMs(void *user)
 {
     (void)user;
-    return BSP_Tick_GetMs();
+    return PlatformPort_GetMs();
 }
 
 static void Modem4G_SetState(Modem4G_State_T state)
@@ -190,7 +187,7 @@ static void Modem4G_SetState(Modem4G_State_T state)
     if (g_status.state != state)
     {
         g_status.state = state;
-        g_state_start_ms = BSP_Tick_GetMs();
+        g_state_start_ms = PlatformPort_GetMs();
         g_command_issued = 0U;
         g_command_retry_count = 0U;
         g_retry_waiting = 0U;
@@ -534,7 +531,7 @@ static void Modem4G_ResetCommandTracking(void)
 
 static void Modem4G_BeginBootSyncWindow(void)
 {
-    g_boot_sync_start_ms = BSP_Tick_GetMs();
+    g_boot_sync_start_ms = PlatformPort_GetMs();
     Modem4G_ResetCommandTracking();
     Modem4G_SetState(MODEM4G_STATE_AT_SYNC);
 }
@@ -550,8 +547,8 @@ static void Modem4G_EnterHardwareReset(void)
     g_status.reset_attempts++;
     g_modem_stats.reset_count++;
     AT_Core_Reset(&g_at_core);
-    BSP_4G_PowerKeyRelease();
-    BSP_4G_ResetAssert();
+    PlatformPort_ModemPowerKeyRelease();
+    PlatformPort_ModemResetAssert();
     Modem4G_SetState(MODEM4G_STATE_RESET_ASSERT);
 }
 
@@ -559,7 +556,7 @@ static void Modem4G_ScheduleRetry(void)
 {
     g_command_issued = 0U;
     g_retry_waiting = 1U;
-    g_retry_start_ms = BSP_Tick_GetMs();
+    g_retry_start_ms = PlatformPort_GetMs();
     g_modem_stats.command_failures++;
 }
 
@@ -634,7 +631,7 @@ static Modem4G_CommandStep_T Modem4G_CommandStep(const char *command,
     if (result == AT_CORE_RESULT_OK)
     {
         g_status.alive = 1U;
-        g_status.last_ok_ms = BSP_Tick_GetMs();
+        g_status.last_ok_ms = PlatformPort_GetMs();
         return MODEM4G_STEP_OK;
     }
     if (result == AT_CORE_RESULT_TIMEOUT)
@@ -672,8 +669,8 @@ static void Modem4G_ProcessStateMachine(void)
         case MODEM4G_STATE_VBAT_SETTLE:
             if (Modem4G_IsElapsed(g_state_start_ms, MODEM4G_VBAT_SETTLE_MS) != 0U)
             {
-                BSP_4G_ResetRelease();
-                BSP_4G_PowerKeyAssert();
+                PlatformPort_ModemResetRelease();
+                PlatformPort_ModemPowerKeyAssert();
                 g_modem_stats.power_on_count++;
                 Modem4G_SetState(MODEM4G_STATE_PWRKEY_ASSERT);
             }
@@ -682,7 +679,7 @@ static void Modem4G_ProcessStateMachine(void)
         case MODEM4G_STATE_PWRKEY_ASSERT:
             if (Modem4G_IsElapsed(g_state_start_ms, MODEM4G_PWRKEY_ON_HOLD_MS) != 0U)
             {
-                BSP_4G_PowerKeyRelease();
+                PlatformPort_ModemPowerKeyRelease();
                 Modem4G_BeginBootSyncWindow();
             }
             break;
@@ -990,7 +987,7 @@ static void Modem4G_ProcessStateMachine(void)
         case MODEM4G_STATE_RESET_ASSERT:
             if (Modem4G_IsElapsed(g_state_start_ms, MODEM4G_RESET_HOLD_MS) != 0U)
             {
-                BSP_4G_ResetRelease();
+                PlatformPort_ModemResetRelease();
                 Modem4G_BeginBootSyncWindow();
             }
             break;
@@ -1012,13 +1009,13 @@ void Modem4G_Init(void)
     g_status.cgreg = MODEM4G_REG_INVALID;
     g_status.creg = MODEM4G_REG_INVALID;
     g_last_urc[0] = '\0';
-    g_state_start_ms = BSP_Tick_GetMs();
+    g_state_start_ms = PlatformPort_GetMs();
     g_boot_sync_start_ms = g_state_start_ms;
     g_retry_start_ms = g_state_start_ms;
     Modem4G_ResetCommandTracking();
 
-    BSP_4G_ResetRelease();
-    BSP_4G_PowerKeyRelease();
+    PlatformPort_ModemResetRelease();
+    PlatformPort_ModemPowerKeyRelease();
 
     AT_Core_Init(&g_at_core,
                  Modem4G_Tx,
@@ -1037,8 +1034,8 @@ void Modem4G_Start(void)
     }
 
     AT_Core_Reset(&g_at_core);
-    BSP_4G_ResetRelease();
-    BSP_4G_PowerKeyRelease();
+    PlatformPort_ModemResetRelease();
+    PlatformPort_ModemPowerKeyRelease();
     g_status.alive = 0U;
     g_status.sim_ready = 0U;
     g_status.registered = 0U;
@@ -1060,7 +1057,7 @@ void Modem4G_Process(void)
 
     do
     {
-        count = BSP_Uart_Read(BSP_UART_4G, buffer, sizeof(buffer));
+        count = PlatformPort_ModemRead(buffer, sizeof(buffer));
         if (count > 0U)
         {
             AT_Core_Feed(&g_at_core, buffer, count);

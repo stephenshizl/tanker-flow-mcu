@@ -1,20 +1,19 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "bsp_uart.h"
+#include "platform_port.h"
 #include "gnss.h"
 
 static uint32_t g_mock_tick_ms;
 static unsigned int g_failures;
 
-uint32_t BSP_Tick_GetMs(void)
+uint32_t PlatformPort_GetMs(void)
 {
     return g_mock_tick_ms;
 }
 
-uint16_t BSP_Uart_Read(BSP_UartPort_T port, uint8_t *data, uint16_t max_length)
+uint16_t PlatformPort_GnssRead(uint8_t *data, uint16_t max_length)
 {
-    (void)port;
     (void)data;
     (void)max_length;
     return 0U;

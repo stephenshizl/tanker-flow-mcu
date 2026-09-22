@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "bsp_gpio.h"
-#include "bsp_tick.h"
-#include "bsp_uart.h"
+#include "platform_port.h"
 #include "modem_4g.h"
 
 #define TEST_TX_MAX  (2048U)
@@ -94,22 +92,16 @@ static uint8_t Test_MatchMipcall(const char *line, uint16_t length, void *user)
     return (memcmp(line, prefix, sizeof(prefix) - 1U) == 0) ? 1U : 0U;
 }
 
-uint32_t BSP_Tick_GetMs(void)
+uint32_t PlatformPort_GetMs(void)
 {
     return g_io.now_ms;
 }
 
-uint8_t BSP_Tick_Elapsed(uint32_t start_ms, uint32_t period_ms)
-{
-    return ((uint32_t)(g_io.now_ms - start_ms) >= period_ms) ? 1U : 0U;
-}
 
-uint16_t BSP_Uart_Read(BSP_UartPort_T port, uint8_t *data, uint16_t max_length)
+uint16_t PlatformPort_ModemRead(uint8_t *data, uint16_t max_length)
 {
     uint16_t available;
     uint16_t copy_length;
-
-    CHECK_TRUE(port == BSP_UART_4G);
     available = (uint16_t)(g_io.rx_length - g_io.rx_offset);
     copy_length = (available < max_length) ? available : max_length;
     if (copy_length > 0U)
@@ -125,12 +117,10 @@ uint16_t BSP_Uart_Read(BSP_UartPort_T port, uint8_t *data, uint16_t max_length)
     return copy_length;
 }
 
-void BSP_Uart_Write(BSP_UartPort_T port, const uint8_t *data, uint16_t length)
+uint16_t PlatformPort_ModemWrite(const uint8_t *data, uint16_t length)
 {
     uint16_t room;
     uint16_t copy_length;
-
-    CHECK_TRUE(port == BSP_UART_4G);
     room = (uint16_t)(TEST_TX_MAX - 1U - g_io.tx_length);
     copy_length = (length < room) ? length : room;
     if (copy_length > 0U)
@@ -139,27 +129,28 @@ void BSP_Uart_Write(BSP_UartPort_T port, const uint8_t *data, uint16_t length)
         g_io.tx_length = (uint16_t)(g_io.tx_length + copy_length);
         g_io.tx[g_io.tx_length] = '\0';
     }
+    return copy_length;
 }
 
-void BSP_4G_ResetAssert(void)
+void PlatformPort_ModemResetAssert(void)
 {
     g_io.reset_asserted = 1U;
     g_io.reset_assert_count++;
 }
 
-void BSP_4G_ResetRelease(void)
+void PlatformPort_ModemResetRelease(void)
 {
     g_io.reset_asserted = 0U;
     g_io.reset_release_count++;
 }
 
-void BSP_4G_PowerKeyAssert(void)
+void PlatformPort_ModemPowerKeyAssert(void)
 {
     g_io.powerkey_asserted = 1U;
     g_io.powerkey_assert_count++;
 }
 
-void BSP_4G_PowerKeyRelease(void)
+void PlatformPort_ModemPowerKeyRelease(void)
 {
     g_io.powerkey_asserted = 0U;
     g_io.powerkey_release_count++;

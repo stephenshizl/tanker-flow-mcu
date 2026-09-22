@@ -1,6 +1,6 @@
 # TankerFlow portable firmware / APM32F030RC reference port
 
-## Phase-3D R2-B baseline: MC610 transaction API and URC dispatcher
+## Phase-3D R3 baseline: portable hardware port layer
 
 Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/Keil project hierarchy.  The scope is limited to MC610 hardware power-key/reset sequencing plus a non-blocking AT/SIM/signal/network-registration state machine.  Bootloader, OTA/FOTA, TCP/MQTT sessions, server upload, Bluetooth business protocol, flowmeter protocol and tanker business logic remain out of scope.
 
@@ -10,7 +10,7 @@ Phase-3D builds on the validated Phase-3C AT core and the reorganized firmware/K
 - SYSCLK: 48 MHz
 - SysTick: 1 ms
 - Debug: USART1 PA9/PA10, 115200 8N1
-- App version: `0.3.5-phase3d-r2b`
+- App version: `0.3.6-phase3d-r3`
 
 ### Frozen board mapping
 
@@ -77,8 +77,8 @@ An asynchronous transaction may therefore remain busy after its initial `OK`, wh
   - supports a configurable successful terminal token such as `OK`, `CONNECT` or bare prompt `>`;
   - treats an asynchronous command's initial `OK` only as AT-command acceptance; the device driver must wait for the documented later URC/result indication;
   - uses wrap-safe millisecond timeout checks and never busy-waits for a response.
-- `Drivers/Modem/MC610/modem_4g.*`: TankerFlow adapter for USART3 and SysTick.
-  - consumes `BSP_UART_4G` in the foreground; ISR/DMA code remains protocol-free;
+- `Drivers/Modem/MC610/modem_4g.*`: portable MC610 device/state-machine layer.
+  - consumes the logical modem stream through `PlatformPort_ModemRead/Write`; ISR/DMA code remains protocol-free and below the port boundary;
   - classifies MC610-relevant unsolicited lines including `+MIPRTCP`, `+MIPSTAT`, network registration URCs and common boot indications;
   - records lightweight URC counters and a truncated last-URC snapshot for bench diagnostics;
   - deliberately does not start a power-on sequence or issue AT commands automatically at boot.
@@ -101,12 +101,14 @@ Portable device drivers: MC610 / ATGM336 / flowmeter
         |
 Portable protocol middleware: AT / NMEA / Modbus-RTU / CRC
         |
-Port interfaces: UART stream / time / GPIO control / RS485 direction / I2C / ADC
+Portable port contract: modem UART/control + GNSS UART + monotonic time
         |
-BSP port: APM32F0 | STM32 | HC32F460 | host-test mock
+Platform adapter: APM32F0 now; STM32 / HC32 / host mock can implement the same API
+        |
+MCU BSP / HAL
 ```
 
-`Middleware/Protocol/AT/at_core.*` and `Middleware/Protocol/NMEA/nmea_parser.*` are already MCU-independent. The next architecture refactor will remove direct `bsp_*` dependencies from `MC610`, `ATGM336` and the future flowmeter driver by injecting small port-function tables. After that, migration to STM32 or HC32 should require a new BSP/port implementation, while protocol, device-state-machine and application code remain unchanged.
+`Middleware/Protocol/AT/at_core.*`, `Middleware/Protocol/NMEA/nmea_parser.*`, `Drivers/Modem/MC610/modem_4g.*` and `Drivers/GNSS/ATGM336/gnss.*` are now free of direct APM32 BSP dependencies. Migration to STM32 or HC32 keeps these files unchanged and replaces only the platform adapter/BSP implementation. Flowmeter/RS485, charger/I2C and ADC abstractions are intentionally deferred until those portable drivers actually require them.
 
 AT completion is deliberately split into two levels:
 
@@ -114,6 +116,31 @@ AT completion is deliberately split into two levels:
 2. **Device operation completion**: for asynchronous commands, a later command-specific URC/result such as `+MIPCALL`, `+MIPOPEN`, `+MIPNTP` or `+MPINGSTAT`.
 
 The MC610 startup forces `ATQ0` and `ATV1` before normal queries, so the parser can rely on verbose result codes being enabled. `ATQ1` is intentionally not used because suppressing result codes removes a generic transaction-completion marker.
+
+### Phase-3D-R3 portable hardware port layer
+
+- `Platform/Port/platform_port.h` is the MCU-independent hardware contract currently required by the MC610 and ATGM336 drivers.
+- `Platform/APM32/platform_port_apm32.c` is the APM32 adapter and is the only new layer that maps portable driver calls to `bsp_uart`, `bsp_gpio` and `bsp_tick`.
+- `Drivers/Modem/MC610/modem_4g.c` and `Drivers/GNSS/ATGM336/gnss.c` no longer include any `bsp_*` header. Their protocol/state-machine code is therefore independent of APM32 register/HAL APIs.
+- The adapter is compile-time/static: no `malloc`, no RTOS object, no function-pointer table and no added driver RAM state.
+- To migrate these drivers to STM32 or HC32, keep the portable drivers/middleware unchanged and provide the same `platform_port.h` functions in a new platform adapter. Board polarity and UART instance mapping remain below this boundary.
+- The future flow-meter driver should follow this same pattern when it is implemented; unused flow-specific port APIs are intentionally not added yet.
+
+Current dependency direction:
+
+```text
+Application
+    |
+MC610 / ATGM336 device drivers
+    |
+AT Core / NMEA parser
+    |
+Platform/Port contract
+    |
+Platform/APM32 adapter
+    |
+APM32 BSP (UART / GPIO / Tick)
+```
 
 ### Phase-3B GNSS parser
 
@@ -206,13 +233,13 @@ If SGM41511 is absent, I2C wiring/power is wrong, or ADC initialization fails, s
 From `Applications/TankerFlow/Firmware` on a host with GCC:
 
 ```text
-gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/GNSS/ATGM336 -IMiddleware/Protocol/NMEA Tests/gnss_host_test.c Drivers/GNSS/ATGM336/gnss.c Middleware/Protocol/NMEA/nmea_parser.c -o gnss_host_test
+gcc -std=c99 -Wall -Wextra -Werror -IInclude -IPlatform/Port -IDrivers/GNSS/ATGM336 -IMiddleware/Protocol/NMEA Tests/gnss_host_test.c Drivers/GNSS/ATGM336/gnss.c Middleware/Protocol/NMEA/nmea_parser.c -o gnss_host_test
 ./gnss_host_test
 
 gcc -std=c99 -Wall -Wextra -Werror -IMiddleware/Protocol/AT Tests/at_core_host_test.c Middleware/Protocol/AT/at_core.c -o at_core_host_test
 ./at_core_host_test
 
-gcc -std=c99 -Wall -Wextra -Werror -IInclude -IDrivers/Modem/MC610 -IMiddleware/Protocol/AT Tests/mc610_host_test.c Drivers/Modem/MC610/modem_4g.c Middleware/Protocol/AT/at_core.c -o mc610_host_test
+gcc -std=c99 -Wall -Wextra -Werror -IInclude -IPlatform/Port -IDrivers/Modem/MC610 -IMiddleware/Protocol/AT Tests/mc610_host_test.c Drivers/Modem/MC610/modem_4g.c Middleware/Protocol/AT/at_core.c -o mc610_host_test
 ./mc610_host_test
 ```
 

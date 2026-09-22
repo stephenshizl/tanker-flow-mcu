@@ -1,7 +1,6 @@
 #include "gnss.h"
 
-#include "bsp_tick.h"
-#include "bsp_uart.h"
+#include "platform_port.h"
 #include "nmea_parser.h"
 
 #define GNSS_LINE_MAX_LENGTH  (128U)
@@ -77,7 +76,7 @@ static void Gnss_ApplyDecoded(const NMEA_Decoded_T *decoded)
     {
         g_info.latitude_e7 = decoded->latitude_e7;
         g_info.longitude_e7 = decoded->longitude_e7;
-        g_info.last_update_ms = BSP_Tick_GetMs();
+        g_info.last_update_ms = PlatformPort_GetMs();
     }
 
     if (decoded->has_validity != 0U)
@@ -148,7 +147,7 @@ void GNSS_Process(void)
 
     do
     {
-        count = BSP_Uart_Read(BSP_UART_GNSS, buffer, sizeof(buffer));
+        count = PlatformPort_GnssRead(buffer, sizeof(buffer));
         if (count > 0U)
         {
             GNSS_Feed(buffer, count);
@@ -231,5 +230,5 @@ uint8_t GNSS_IsFresh(uint32_t timeout_ms)
         return 0U;
     }
 
-    return ((uint32_t)(BSP_Tick_GetMs() - g_info.last_update_ms) <= timeout_ms) ? 1U : 0U;
+    return ((uint32_t)(PlatformPort_GetMs() - g_info.last_update_ms) <= timeout_ms) ? 1U : 0U;
 }

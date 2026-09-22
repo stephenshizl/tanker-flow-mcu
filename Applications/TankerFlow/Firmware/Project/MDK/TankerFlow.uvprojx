@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>BOARD_APM32F030_MINI,APM32F030xC</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS\ATGM336;..\..\Drivers\Modem\MC610;..\..\Middleware\Protocol\NMEA;..\..\Middleware\Protocol\AT</IncludePath>
+              <IncludePath>..\..\..\..\..\Libraries\APM32F0xx_StdPeriphDriver\inc;..\..\..\..\..\Libraries\CMSIS\Include;..\..\..\..\..\Libraries\Device\Geehy\APM32F0xx\Include;..\..\..\..\..\Boards;..\..\Include;..\..\Drivers\SGM41511;..\..\Drivers\GNSS\ATGM336;..\..\Drivers\Modem\MC610;..\..\Middleware\Protocol\NMEA;..\..\Middleware\Protocol\AT;..\..\Platform\Port</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -722,6 +722,16 @@
               <FileName>bsp_peripherals.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Platform-APM32</GroupName>
+          <Files>
+            <File>
+              <FileName>platform_port_apm32.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Platform\APM32\platform_port_apm32.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1507,6 +1517,16 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>Platform-APM32</GroupName>
+          <Files>
+            <File>
+              <FileName>platform_port_apm32.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Platform\APM32\platform_port_apm32.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>Diagnostics</GroupName>
           <Files>
             <File>
@@ -2288,6 +2308,16 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>Platform-APM32</GroupName>
+          <Files>
+            <File>
+              <FileName>platform_port_apm32.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Platform\APM32\platform_port_apm32.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>Diagnostics</GroupName>
           <Files>
             <File>
@@ -3065,6 +3095,16 @@
               <FileName>bsp_peripherals.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\bsp_peripherals.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Platform-APM32</GroupName>
+          <Files>
+            <File>
+              <FileName>platform_port_apm32.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Platform\APM32\platform_port_apm32.c</FilePath>
             </File>
           </Files>
         </Group>
