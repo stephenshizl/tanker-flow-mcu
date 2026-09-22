@@ -142,6 +142,23 @@ Platform/APM32 adapter
 APM32 BSP (UART / GPIO / Tick)
 ```
 
+
+### Phase-3E-A flow-meter portable transport interface
+
+The flow-meter hardware path is now exposed through the MCU-independent
+`Platform/Port` contract without introducing meter-protocol assumptions.
+The portable layer provides complete-frame RX, raw UART TX, flow power, raw
+RS485 TXEN/RXEN pin control, direction input and insertion-detect input.
+
+The APM32 backend maps those calls to the existing USART5 9600 8E1 + TMR16
+T3.5 frame detector and board GPIO BSP. Portable code does not assume the
+active polarity of RS485 DE//RE yet; that policy remains explicit until the
+board behavior is frozen. No Modbus register map or flow-meter business
+protocol is added in this phase.
+
+This keeps the next flow-meter driver reusable on APM32, STM32 and HC32 by
+replacing only the platform adapter.
+
 ### Phase-3B GNSS parser
 
 - `Drivers/GNSS/ATGM336/gnss.*`: stream framing/integration layer.

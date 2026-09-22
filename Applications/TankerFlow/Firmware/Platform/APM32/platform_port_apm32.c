@@ -44,3 +44,39 @@ uint16_t PlatformPort_GnssRead(uint8_t *data, uint16_t max_length)
 {
     return BSP_Uart_Read(BSP_UART_GNSS, data, max_length);
 }
+
+int PlatformPort_FlowReadFrame(uint8_t *data, uint16_t capacity)
+{
+    return BSP_Flow_ReadFrame(data, capacity);
+}
+
+uint16_t PlatformPort_FlowWrite(const uint8_t *data, uint16_t length)
+{
+    BSP_Uart_Write(BSP_UART_FLOW, data, length);
+    return length;
+}
+
+void PlatformPort_FlowSetPower(uint8_t enable)
+{
+    BSP_Flow_SetPower(enable);
+}
+
+void PlatformPort_FlowTxEnablePinWrite(uint8_t high)
+{
+    BSP_RS485_TxEnablePin_Write(high);
+}
+
+void PlatformPort_FlowRxEnablePinWrite(uint8_t high)
+{
+    BSP_RS485_RxEnablePin_Write(high);
+}
+
+uint8_t PlatformPort_FlowDirectionRead(void)
+{
+    return BSP_FlowDirection_Read();
+}
+
+uint8_t PlatformPort_FlowInsertDetectRead(void)
+{
+    return BSP_InsertDetect_Read();
+}

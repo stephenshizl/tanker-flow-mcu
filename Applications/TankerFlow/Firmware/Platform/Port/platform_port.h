@@ -22,4 +22,19 @@ void PlatformPort_ModemPowerKeyRelease(void);
 
 uint16_t PlatformPort_GnssRead(uint8_t *data, uint16_t max_length);
 
+/*
+ * Flow-meter transport primitives.
+ *
+ * These APIs intentionally expose raw board control levels instead of
+ * assuming RS485 DE//RE polarity in portable code. Protocol/device logic
+ * can be layered above these primitives once the meter protocol is frozen.
+ */
+int PlatformPort_FlowReadFrame(uint8_t *data, uint16_t capacity);
+uint16_t PlatformPort_FlowWrite(const uint8_t *data, uint16_t length);
+void PlatformPort_FlowSetPower(uint8_t enable);
+void PlatformPort_FlowTxEnablePinWrite(uint8_t high);
+void PlatformPort_FlowRxEnablePinWrite(uint8_t high);
+uint8_t PlatformPort_FlowDirectionRead(void);
+uint8_t PlatformPort_FlowInsertDetectRead(void);
+
 #endif /* PLATFORM_PORT_H */
