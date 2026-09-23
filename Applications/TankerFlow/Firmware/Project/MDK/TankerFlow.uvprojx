@@ -668,6 +668,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
             </File>
+            <File>
+              <FileName>flow_session.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_session.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1483,6 +1488,11 @@
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
+            </File>
+            <File>
+              <FileName>flow_session.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_session.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2300,6 +2310,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
             </File>
+            <File>
+              <FileName>flow_session.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_session.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -3115,6 +3130,11 @@
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Source\main.c</FilePath>
+            </File>
+            <File>
+              <FileName>flow_session.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_session.c</FilePath>
             </File>
           </Files>
         </Group>
