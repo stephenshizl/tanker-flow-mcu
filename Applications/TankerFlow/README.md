@@ -318,3 +318,48 @@ gcc -std=c99 -Wall -Wextra -Werror -IInclude -IPlatform/Port -IDrivers/Modem/MC6
 Expected final lines: `GNSS host tests: PASS`, `AT core host tests: PASS` and `MC610 host tests: PASS`.
 
 Do not add Bootloader/OTA, TCP/MQTT session logic, server upload or other business protocols in this phase.
+
+### Phase-3E-D non-blocking flow acquisition and direction-aware session totals
+
+`Drivers/FlowMeter/flow_meter_service.*` adds an allocation-free foreground
+state machine above the ZELZ Modbus codec and portable RS485 transport. It
+periodically sends the combined six-register realtime query, waits for a
+T3.5-delimited response without blocking the main loop, validates/decodes the
+frame, and provides timeout/retry/error/freshness statistics. The service is
+compiled into the firmware but is not started from `main()` yet; RS485 polarity,
+meter power, slave address and polling policy must still be configured by the
+application during board bring-up.
+
+The meter's own cumulative counters are treated as raw measurement sources,
+not as the business total. The business session total is maintained in
+software because the meter does not know whether measured volume is flowing in
+or out. The service uses the high-resolution batch cumulative counter
+(`0x0000`, 0.001 L units) to compute unsigned volume deltas and combines those
+deltas with the external `DIR_FLOW` input. It keeps three independent values:
+
+- session inflow volume;
+- session outflow volume;
+- signed session net volume = inflow - outflow.
+
+The raw meter total (`0x0002`) is still retained in the realtime snapshot for
+diagnostics/server reporting, but it must not be used directly as the tanker
+business total. If the meter-side batch counter decreases, the service rebases
+instead of interpreting the decrease as a huge unsigned volume delta.
+
+Direction input polarity is configurable through `inflow_level`; no APM32 GPIO
+polarity is hard-coded in portable business logic. If the sampled direction
+changes between two valid cumulative samples, the interval cannot be split
+accurately using polling alone. The service therefore rebases that interval and
+increments an ambiguity statistic instead of assigning the entire delta the
+wrong sign. Hardware validation can later decide whether a faster poll period
+or a direction-edge latch/interrupt is needed around real pump reversal.
+
+A future server command such as "clear/reset current total" must reset the MCU
+software session, not the meter's lifetime cumulative register. The upper
+server-command layer calls `FlowMeterService_RequestSessionReset()`. The request
+remains pending until the next valid meter response; that sample becomes the
+new measurement baseline, inflow/outflow/net totals become zero, and
+`reset_sequence` plus `reset_effective_ms` identify when the reset actually took
+effect. The server should acknowledge reset completion only after the pending
+flag clears, avoiding an ambiguous zero point when no fresh meter reading is
+available.

@@ -23,6 +23,11 @@ void BSP_RS485_TxEnablePin_Write(uint8_t high);
 void BSP_RS485_RxEnablePin_Write(uint8_t high);
 
 uint8_t BSP_FlowDirection_Read(void);
+uint32_t BSP_FlowDirectionInterrupt_Count(void);
+uint8_t BSP_FlowDirectionEvent_Consume(uint32_t *sequence,
+                                       uint32_t *timestamp_ms,
+                                       uint8_t *level);
+void BSP_FlowDirectionInterrupt_IRQHandler(void);
 uint8_t BSP_InsertDetect_Read(void);
 
 void BSP_Charger_SetEnable(uint8_t enable);

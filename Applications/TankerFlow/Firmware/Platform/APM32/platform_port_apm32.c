@@ -76,6 +76,18 @@ uint8_t PlatformPort_FlowDirectionRead(void)
     return BSP_FlowDirection_Read();
 }
 
+uint8_t PlatformPort_FlowDirectionEventConsume(PlatformPort_FlowDirectionEvent_T *event)
+{
+    if (event == 0)
+    {
+        return 0U;
+    }
+
+    return BSP_FlowDirectionEvent_Consume(&event->sequence,
+                                          &event->timestamp_ms,
+                                          &event->level);
+}
+
 uint8_t PlatformPort_FlowInsertDetectRead(void)
 {
     return BSP_InsertDetect_Read();

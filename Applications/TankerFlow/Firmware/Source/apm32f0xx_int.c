@@ -31,6 +31,7 @@ void SysTick_Handler(void)
 void EINT4_15_IRQHandler(void)
 {
     BSP_ChargerInterrupt_IRQHandler();
+    BSP_FlowDirectionInterrupt_IRQHandler();
 }
 
 void DMA1_CH2_3_IRQHandler(void)

@@ -41,6 +41,21 @@ void PlatformPort_FlowSetPower(uint8_t enable);
 void PlatformPort_FlowTxEnablePinWrite(uint8_t high);
 void PlatformPort_FlowRxEnablePinWrite(uint8_t high);
 uint8_t PlatformPort_FlowDirectionRead(void);
+
+typedef struct
+{
+    uint32_t sequence;
+    uint32_t timestamp_ms;
+    uint8_t level;
+} PlatformPort_FlowDirectionEvent_T;
+
+/*
+ * Consume the latest direction edge captured by the platform ISR.
+ * Returns 1 when an event was available, otherwise 0. If several edges occur
+ * before foreground processing, sequence may jump; portable code can detect
+ * the missed intermediate edges without allocating an ISR queue.
+ */
+uint8_t PlatformPort_FlowDirectionEventConsume(PlatformPort_FlowDirectionEvent_T *event);
 uint8_t PlatformPort_FlowInsertDetectRead(void);
 
 #endif /* PLATFORM_PORT_H */

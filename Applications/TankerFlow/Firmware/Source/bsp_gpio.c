@@ -1,6 +1,7 @@
 #include "bsp_gpio.h"
 
 #include "board_pinmap.h"
+#include "bsp_tick.h"
 #include "apm32f0xx_eint.h"
 #include "apm32f0xx_gpio.h"
 #include "apm32f0xx_misc.h"
@@ -9,6 +10,11 @@
 
 static volatile uint32_t g_charger_interrupt_count;
 static volatile uint8_t g_charger_interrupt_pending;
+
+static volatile uint32_t g_flow_direction_interrupt_count;
+static volatile uint32_t g_flow_direction_interrupt_timestamp_ms;
+static volatile uint8_t g_flow_direction_interrupt_level;
+static volatile uint8_t g_flow_direction_interrupt_pending;
 
 static void GPIO_ConfigOutput(GPIO_T *port, uint16_t pin, uint8_t initial_high)
 {
@@ -43,6 +49,27 @@ static void GPIO_ConfigInput(GPIO_T *port, uint16_t pin, GPIO_PUPD_T pull)
     config.speed = GPIO_SPEED_2MHz;
     config.pupd = pull;
     GPIO_Config(port, &config);
+}
+
+
+static void GPIO_ConfigFlowDirectionInterrupt(void)
+{
+    EINT_Config_T eint_config;
+
+    g_flow_direction_interrupt_count = 0U;
+    g_flow_direction_interrupt_timestamp_ms = 0U;
+    g_flow_direction_interrupt_level = GPIO_ReadInputBit(BOARD_FLOW_DIR_PORT, BOARD_FLOW_DIR_PIN);
+    g_flow_direction_interrupt_pending = 0U;
+
+    SYSCFG_EINTLine(SYSCFG_PORT_GPIOB, SYSCFG_PIN_14);
+    EINT_ConfigStructInit(&eint_config);
+    eint_config.line = EINT_LINE14;
+    eint_config.mode = EINT_MODE_INTERRUPT;
+    eint_config.trigger = EINT_TRIGGER_ALL;
+    eint_config.lineCmd = ENABLE;
+    EINT_Config(&eint_config);
+    EINT_ClearIntFlag(EINT_LINE14);
+    NVIC_EnableIRQRequest(EINT4_15_IRQn, 3U);
 }
 
 static void GPIO_ConfigChargerInterrupt(void)
@@ -83,6 +110,7 @@ void BSP_BoardGpio_Init(void)
     GPIO_ConfigOutput(BOARD_RS485_RXEN_PORT, BOARD_RS485_RXEN_PIN, 0U);
     GPIO_ConfigInput(BOARD_FLOW_DIR_PORT, BOARD_FLOW_DIR_PIN, GPIO_PUPD_NO);
     GPIO_ConfigInput(BOARD_INSERT_PORT, BOARD_INSERT_PIN, GPIO_PUPD_NO);
+    GPIO_ConfigFlowDirectionInterrupt();
 
     /* SGM41511 nCE is active-low. Default high keeps charging disabled during bring-up. */
     GPIO_ConfigOutput(BOARD_CHARGE_EN_PORT, BOARD_CHARGE_EN_PIN, 1U);
@@ -130,6 +158,53 @@ void BSP_RS485_RxEnablePin_Write(uint8_t high)
 }
 
 uint8_t BSP_FlowDirection_Read(void) { return GPIO_ReadInputBit(BOARD_FLOW_DIR_PORT, BOARD_FLOW_DIR_PIN); }
+
+uint32_t BSP_FlowDirectionInterrupt_Count(void)
+{
+    return g_flow_direction_interrupt_count;
+}
+
+uint8_t BSP_FlowDirectionEvent_Consume(uint32_t *sequence,
+                                       uint32_t *timestamp_ms,
+                                       uint8_t *level)
+{
+    uint8_t pending;
+
+    NVIC_DisableIRQRequest(EINT4_15_IRQn);
+    pending = g_flow_direction_interrupt_pending;
+    if (pending != 0U)
+    {
+        if (sequence != 0)
+        {
+            *sequence = g_flow_direction_interrupt_count;
+        }
+        if (timestamp_ms != 0)
+        {
+            *timestamp_ms = g_flow_direction_interrupt_timestamp_ms;
+        }
+        if (level != 0)
+        {
+            *level = g_flow_direction_interrupt_level;
+        }
+        g_flow_direction_interrupt_pending = 0U;
+    }
+    NVIC_EnableIRQRequest(EINT4_15_IRQn, 3U);
+
+    return pending;
+}
+
+void BSP_FlowDirectionInterrupt_IRQHandler(void)
+{
+    if (EINT_ReadIntFlag(EINT_LINE14) == SET)
+    {
+        EINT_ClearIntFlag(EINT_LINE14);
+        g_flow_direction_interrupt_count++;
+        g_flow_direction_interrupt_timestamp_ms = BSP_Tick_GetMs();
+        g_flow_direction_interrupt_level = BSP_FlowDirection_Read();
+        g_flow_direction_interrupt_pending = 1U;
+    }
+}
+
 uint8_t BSP_InsertDetect_Read(void)   { return GPIO_ReadInputBit(BOARD_INSERT_PORT, BOARD_INSERT_PIN); }
 
 void BSP_Charger_SetEnable(uint8_t enable)
