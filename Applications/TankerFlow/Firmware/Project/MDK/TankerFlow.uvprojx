@@ -673,6 +673,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\Application\flow_session.c</FilePath>
             </File>
+            <File>
+              <FileName>flow_meter_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_meter_app.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1493,6 +1498,11 @@
               <FileName>flow_session.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Application\flow_session.c</FilePath>
+            </File>
+            <File>
+              <FileName>flow_meter_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_meter_app.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2315,6 +2325,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\Application\flow_session.c</FilePath>
             </File>
+            <File>
+              <FileName>flow_meter_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_meter_app.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -3135,6 +3150,11 @@
               <FileName>flow_session.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\Application\flow_session.c</FilePath>
+            </File>
+            <File>
+              <FileName>flow_meter_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Application\flow_meter_app.c</FilePath>
             </File>
           </Files>
         </Group>

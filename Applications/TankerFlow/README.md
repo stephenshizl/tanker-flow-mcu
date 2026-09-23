@@ -363,3 +363,47 @@ new measurement baseline, inflow/outflow/net totals become zero, and
 effect. The server should acknowledge reset completion only after the pending
 flag clears, avoiding an ambiguous zero point when no fresh meter reading is
 available.
+
+### Phase-3E-F flow-meter application bring-up integration
+
+`Application/flow_meter_app.*` now connects the already-reviewed flow-meter
+transport/service stack to application startup through a non-blocking bring-up
+controller. The sequence is `FlowMeter_Init()` -> explicit RS485 polarity
+configuration -> `FlowMeterService_Init()` -> meter power on -> power-settle
+wait -> `FlowMeterService_Start()` -> foreground `FlowMeterService_Process()`.
+No delay loop is used while waiting for meter power to stabilize.
+
+Board-dependent active levels are centralized in
+`Include/flow_meter_board_config.h`. The safe default keeps
+`FLOW_METER_BOARD_BRINGUP_ENABLE` at `0` and leaves RS485 TXEN/RXEN,
+`DIR_FLOW` inflow polarity and `DET_INSERT` present polarity as
+`FLOW_METER_BOARD_LEVEL_UNCONFIRMED`. Enabling bring-up while any required
+level remains unconfirmed is rejected before RS485 pins or meter power are
+activated. This deliberately avoids guessing board polarity from signal names.
+
+The application still has a complete build/run path while hardware polarity is
+unknown: `main()` initializes the bring-up controller, calls
+`FlowMeterApp_Process()` from the foreground loop, and prints state transitions.
+With the safe default profile the expected state is `DISABLED` and `FLOW_EN`
+remains off. Once schematic/bench confirmation is available, only the board
+configuration values need to be frozen; portable driver/service code does not
+change.
+
+The default ZELZ policy is slave address 1, 1000 ms power settle, 1000 ms poll
+interval, 300 ms response timeout and two retries. These are application
+bring-up defaults rather than protocol guarantees and can be adjusted after
+real-board timing measurements.
+
+`DET_INSERT` polarity is carried as explicit configuration and exposed as a
+semantic `meter_present` status, but Phase-3E-F does not yet implement automatic
+hot-plug power cycling. Server/Bluetooth business commands continue to use the
+transport-neutral `FlowSession` facade added in Phase-3E-E.
+
+Host validation:
+
+```text
+gcc -std=c99 -Wall -Wextra -Werror -IInclude -IPlatform/Port -IDrivers/FlowMeter -IDrivers/FlowMeter/ZELZ Tests/flow_meter_app_host_test.c Application/flow_meter_app.c -o flow_meter_app_host_test
+./flow_meter_app_host_test
+```
+
+Expected final line: `Flow meter app host tests: PASS`.
