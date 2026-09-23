@@ -1,0 +1,765 @@
+diff --git a/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.c b/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.c
+index cff103d1ec474cbed9410a85624b76bda3618dc1..bdf20ae5983837e2eca772f6bf888ea26bee1e41 100644
+--- a/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.c
++++ b/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.c
+@@ -5,6 +5,7 @@
+ 
+ #define FLOW_METER_SERVICE_REQUEST_MAX  (8U)
+ #define FLOW_METER_SERVICE_RESPONSE_MAX (32U)
++#define FLOW_METER_TOTAL_RAW_TO_MILLI_L  (1000ULL)
+ 
+ static FlowMeterService_Config_T g_config;
+ static FlowMeterService_Snapshot_T g_snapshot;
+@@ -13,11 +14,16 @@ static FlowMeterService_State_T g_state;
+ static uint32_t g_state_started_ms;
+ static uint32_t g_next_poll_ms;
+ static uint32_t g_last_meter_batch_milli_l;
++static uint32_t g_session_meter_total_base_milli_m3;
++static uint32_t g_last_direction_event_sequence;
+ static FlowMeterService_Direction_T g_last_accounting_direction;
++static FlowMeterService_Direction_T g_boundary_direction;
+ static uint8_t g_initialized;
+ static uint8_t g_running;
+ static uint8_t g_retry_count;
+ static uint8_t g_baseline_valid;
++static uint8_t g_meter_total_baseline_valid;
++static uint8_t g_direction_boundary_pending;
+ 
+ static uint8_t FlowMeterService_Elapsed(uint32_t now_ms,
+                                         uint32_t start_ms,
+@@ -75,71 +81,132 @@ static int FlowMeterService_SendRequest(uint32_t now_ms)
+     return FLOW_METER_SERVICE_OK;
+ }
+ 
++static void FlowMeterService_SetMeterTotalBaseline(const ZelzFlow_Realtime_T *realtime)
++{
++    g_session_meter_total_base_milli_m3 = realtime->total_milli_m3;
++    g_meter_total_baseline_valid = 1U;
++    g_snapshot.session_meter_absolute_milli_l = 0U;
++}
++
++static void FlowMeterService_UpdateMeterAbsolute(const ZelzFlow_Realtime_T *realtime)
++{
++    uint32_t delta_raw;
++
++    if (g_meter_total_baseline_valid == 0U)
++    {
++        FlowMeterService_SetMeterTotalBaseline(realtime);
++        return;
++    }
++
++    if (realtime->total_milli_m3 < g_session_meter_total_base_milli_m3)
++    {
++        /* Meter-side lifetime/total counter was externally reset or wrapped. */
++        FlowMeterService_SetMeterTotalBaseline(realtime);
++        g_stats.meter_total_rebases++;
++        return;
++    }
++
++    delta_raw = realtime->total_milli_m3 - g_session_meter_total_base_milli_m3;
++    g_snapshot.session_meter_absolute_milli_l =
++        (uint64_t)delta_raw * FLOW_METER_TOTAL_RAW_TO_MILLI_L;
++}
++
++static void FlowMeterService_ClearDirectionBoundary(void)
++{
++    g_direction_boundary_pending = 0U;
++    g_snapshot.direction_boundary_pending = 0U;
++}
++
+ static void FlowMeterService_ApplySessionReset(uint32_t now_ms,
+-                                               uint32_t meter_batch_milli_l,
++                                               const ZelzFlow_Realtime_T *realtime,
+                                                FlowMeterService_Direction_T direction)
+ {
+     g_snapshot.session_inflow_milli_l = 0U;
+     g_snapshot.session_outflow_milli_l = 0U;
++    g_snapshot.session_unclassified_milli_l = 0U;
+     g_snapshot.session_net_milli_l = 0;
+     g_snapshot.reset_pending = 0U;
+     g_snapshot.reset_sequence++;
+     g_snapshot.reset_effective_ms = now_ms;
+ 
+-    g_last_meter_batch_milli_l = meter_batch_milli_l;
++    g_last_meter_batch_milli_l = realtime->batch_total_milli_l;
+     g_last_accounting_direction = direction;
+     g_baseline_valid = 1U;
++    FlowMeterService_SetMeterTotalBaseline(realtime);
++    FlowMeterService_ClearDirectionBoundary();
+     g_stats.session_resets++;
+ }
+ 
++static void FlowMeterService_AccountAmbiguousDelta(uint32_t delta_milli_l,
++                                                    FlowMeterService_Direction_T direction)
++{
++    g_snapshot.session_unclassified_milli_l += delta_milli_l;
++    g_last_accounting_direction = direction;
++    FlowMeterService_ClearDirectionBoundary();
++
++    if (delta_milli_l != 0U)
++    {
++        g_stats.ambiguous_direction_intervals++;
++    }
++}
++
+ static void FlowMeterService_AccountSample(uint32_t now_ms,
+-                                           uint32_t meter_batch_milli_l,
++                                           const ZelzFlow_Realtime_T *realtime,
+                                            FlowMeterService_Direction_T direction)
+ {
+     uint32_t delta_milli_l;
+ 
+     if (g_snapshot.reset_pending != 0U)
+     {
+-        FlowMeterService_ApplySessionReset(now_ms, meter_batch_milli_l, direction);
++        FlowMeterService_ApplySessionReset(now_ms, realtime, direction);
+         return;
+     }
+ 
++    FlowMeterService_UpdateMeterAbsolute(realtime);
++
+     if (g_baseline_valid == 0U)
+     {
+-        g_last_meter_batch_milli_l = meter_batch_milli_l;
++        g_last_meter_batch_milli_l = realtime->batch_total_milli_l;
+         g_last_accounting_direction = direction;
+         g_baseline_valid = 1U;
+         return;
+     }
+ 
+-    if (meter_batch_milli_l < g_last_meter_batch_milli_l)
++    if (realtime->batch_total_milli_l < g_last_meter_batch_milli_l)
+     {
+         /*
+-         * The meter-side batch counter can be reset independently of the MCU.
+-         * Rebase instead of interpreting a decrease as unsigned wrap volume.
++         * The meter-side high-resolution batch counter can be reset
++         * independently of the MCU. Rebase instead of interpreting a
++         * decrease as unsigned wrap volume.
+          */
+-        g_last_meter_batch_milli_l = meter_batch_milli_l;
++        g_last_meter_batch_milli_l = realtime->batch_total_milli_l;
+         g_last_accounting_direction = direction;
++        FlowMeterService_ClearDirectionBoundary();
+         g_stats.meter_rebases++;
+         return;
+     }
+ 
+-    delta_milli_l = meter_batch_milli_l - g_last_meter_batch_milli_l;
+-    g_last_meter_batch_milli_l = meter_batch_milli_l;
++    delta_milli_l = realtime->batch_total_milli_l - g_last_meter_batch_milli_l;
++    g_last_meter_batch_milli_l = realtime->batch_total_milli_l;
+ 
+-    if (direction != g_last_accounting_direction)
++    if (g_direction_boundary_pending != 0U)
+     {
+         /*
+-         * A direction transition happened somewhere between two samples. The
+-         * exact split of that interval is unknown, so never apply the whole
+-         * delta with an arbitrary sign. Rebase at this sample instead.
++         * The GPIO edge gives us an exact direction-change timestamp, but a
++         * Modbus read happens afterwards. The cumulative delta between the
++         * previous sample and this boundary sample can therefore contain both
++         * old- and new-direction flow. Keep it as explicit unclassified volume
++         * rather than silently dropping it or assigning an arbitrary sign.
+          */
+-        g_last_accounting_direction = direction;
++        FlowMeterService_AccountAmbiguousDelta(delta_milli_l, g_boundary_direction);
++        return;
++    }
++
++    if (direction != g_last_accounting_direction)
++    {
++        /* Fallback if a platform cannot deliver or missed the direction IRQ. */
+         g_stats.direction_changes++;
+-        if (delta_milli_l != 0U)
+-        {
+-            g_stats.ambiguous_direction_intervals++;
+-        }
++        FlowMeterService_AccountAmbiguousDelta(delta_milli_l, direction);
+         return;
+     }
+ 
+@@ -157,6 +224,53 @@ static void FlowMeterService_AccountSample(uint32_t now_ms,
+         (int64_t)g_snapshot.session_outflow_milli_l;
+ }
+ 
++static void FlowMeterService_HandleDirectionEvent(uint32_t now_ms)
++{
++    PlatformPort_FlowDirectionEvent_T event;
++    FlowMeterService_Direction_T direction;
++    uint32_t event_delta;
++
++    if (PlatformPort_FlowDirectionEventConsume(&event) == 0U)
++    {
++        return;
++    }
++
++    direction = FlowMeterService_DecodeDirection(event.level);
++
++    event_delta = (uint32_t)(event.sequence - g_last_direction_event_sequence);
++    if (event_delta == 0U)
++    {
++        event_delta = 1U;
++    }
++    g_last_direction_event_sequence = event.sequence;
++
++    g_stats.direction_interrupts += event_delta;
++    g_stats.direction_changes += event_delta;
++    if (event_delta > 1U)
++    {
++        g_stats.direction_events_missed += event_delta - 1U;
++    }
++
++    g_snapshot.direction_event_sequence = event.sequence;
++    g_snapshot.last_direction_event_ms = event.timestamp_ms;
++    g_snapshot.direction_level = event.level;
++    g_snapshot.direction = direction;
++
++    if (g_baseline_valid != 0U)
++    {
++        /* Any captured edge defines a new accounting boundary. */
++        g_boundary_direction = direction;
++        g_direction_boundary_pending = 1U;
++        g_snapshot.direction_boundary_pending = 1U;
++    }
++
++    if ((g_running != 0U) && (g_state == FLOW_METER_SERVICE_IDLE))
++    {
++        /* Direction edges have priority over the regular polling interval. */
++        g_next_poll_ms = now_ms;
++    }
++}
++
+ static void FlowMeterService_AcceptSample(uint32_t now_ms,
+                                           const ZelzFlow_Realtime_T *realtime)
+ {
+@@ -173,9 +287,7 @@ static void FlowMeterService_AcceptSample(uint32_t now_ms,
+     g_snapshot.last_update_ms = now_ms;
+     g_snapshot.valid = 1U;
+ 
+-    FlowMeterService_AccountSample(now_ms,
+-                                   realtime->batch_total_milli_l,
+-                                   direction);
++    FlowMeterService_AccountSample(now_ms, realtime, direction);
+ }
+ 
+ static void FlowMeterService_RetryOrSchedule(uint32_t now_ms)
+@@ -209,26 +321,36 @@ int FlowMeterService_Init(const FlowMeterService_Config_T *config)
+     g_state_started_ms = 0U;
+     g_next_poll_ms = 0U;
+     g_last_meter_batch_milli_l = 0U;
++    g_session_meter_total_base_milli_m3 = 0U;
++    g_last_direction_event_sequence = 0U;
+     g_last_accounting_direction = FLOW_METER_SERVICE_DIRECTION_UNKNOWN;
++    g_boundary_direction = FLOW_METER_SERVICE_DIRECTION_UNKNOWN;
+     g_initialized = 1U;
+     g_running = 0U;
+     g_retry_count = 0U;
+     g_baseline_valid = 0U;
++    g_meter_total_baseline_valid = 0U;
++    g_direction_boundary_pending = 0U;
+ 
+     g_snapshot.meter.batch_total_milli_l = 0U;
+     g_snapshot.meter.total_milli_m3 = 0U;
+     g_snapshot.meter.instant_milli_m3_per_h = 0U;
+     g_snapshot.session_inflow_milli_l = 0U;
+     g_snapshot.session_outflow_milli_l = 0U;
++    g_snapshot.session_unclassified_milli_l = 0U;
+     g_snapshot.session_net_milli_l = 0;
++    g_snapshot.session_meter_absolute_milli_l = 0U;
+     g_snapshot.last_update_ms = 0U;
+     g_snapshot.reset_sequence = 0U;
+     g_snapshot.reset_effective_ms = 0U;
++    g_snapshot.direction_event_sequence = 0U;
++    g_snapshot.last_direction_event_ms = 0U;
+     g_snapshot.direction = FLOW_METER_SERVICE_DIRECTION_UNKNOWN;
+     g_snapshot.direction_level = 0U;
+     g_snapshot.inserted = 0U;
+     g_snapshot.valid = 0U;
+     g_snapshot.reset_pending = 0U;
++    g_snapshot.direction_boundary_pending = 0U;
+ 
+     FlowMeterService_ResetStats();
+     return FLOW_METER_SERVICE_OK;
+@@ -273,13 +395,14 @@ void FlowMeterService_Process(void)
+     int length;
+     int result;
+ 
++    now_ms = PlatformPort_GetMs();
++    FlowMeterService_HandleDirectionEvent(now_ms);
++
+     if (g_running == 0U)
+     {
+         return;
+     }
+ 
+-    now_ms = PlatformPort_GetMs();
+-
+     if (g_state == FLOW_METER_SERVICE_IDLE)
+     {
+         if ((g_snapshot.reset_pending != 0U) ||
+@@ -397,7 +520,10 @@ void FlowMeterService_ResetStats(void)
+     g_stats.protocol_errors = 0U;
+     g_stats.exception_responses = 0U;
+     g_stats.meter_rebases = 0U;
++    g_stats.meter_total_rebases = 0U;
+     g_stats.direction_changes = 0U;
++    g_stats.direction_interrupts = 0U;
++    g_stats.direction_events_missed = 0U;
+     g_stats.ambiguous_direction_intervals = 0U;
+     g_stats.session_resets = 0U;
+ }
+diff --git a/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.h b/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.h
+index 5b966874209426cf0bfa90f2203065af2262fceb..21ebcf1fb8326271f741d17cc0791a941a067a63 100644
+--- a/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.h
++++ b/Applications/TankerFlow/Firmware/Drivers/FlowMeter/flow_meter_service.h
+@@ -39,17 +39,32 @@ typedef struct
+ typedef struct
+ {
+     ZelzFlow_Realtime_T meter;
++
++    /* Direction-aware software session totals, all in 0.001 L. */
+     uint64_t session_inflow_milli_l;
+     uint64_t session_outflow_milli_l;
++    uint64_t session_unclassified_milli_l;
+     int64_t session_net_milli_l;
++
++    /*
++     * Coarse absolute-throughput cross-check derived from meter register 0x0002.
++     * ZELZ defines each raw unit as 0.001 m^3 = 1 L = 1000 mL.
++     * This is diagnostic only; direction accounting uses the higher-resolution
++     * 0x0000 counter (0.001 L per raw unit).
++     */
++    uint64_t session_meter_absolute_milli_l;
++
+     uint32_t last_update_ms;
+     uint32_t reset_sequence;
+     uint32_t reset_effective_ms;
++    uint32_t direction_event_sequence;
++    uint32_t last_direction_event_ms;
+     FlowMeterService_Direction_T direction;
+     uint8_t direction_level;
+     uint8_t inserted;
+     uint8_t valid;
+     uint8_t reset_pending;
++    uint8_t direction_boundary_pending;
+ } FlowMeterService_Snapshot_T;
+ 
+ typedef struct
+@@ -62,7 +77,10 @@ typedef struct
+     uint32_t protocol_errors;
+     uint32_t exception_responses;
+     uint32_t meter_rebases;
++    uint32_t meter_total_rebases;
+     uint32_t direction_changes;
++    uint32_t direction_interrupts;
++    uint32_t direction_events_missed;
+     uint32_t ambiguous_direction_intervals;
+     uint32_t session_resets;
+ } FlowMeterService_Stats_T;
+@@ -77,7 +95,11 @@ uint8_t FlowMeterService_IsRunning(void);
+ 
+ /*
+  * Request a software session-total reset. The reset becomes effective on the
+- * next valid meter sample, which becomes the new cumulative-volume baseline.
++ * next valid meter sample, which becomes the new high-resolution and coarse
++ * meter baselines. The ZELZ protocol supplied for this project does not define
++ * a supported command for clearing 0x0000/0x0002, so the service deliberately
++ * does not write or erase meter-side accumulated counters.
++ *
+  * A server command should acknowledge completion only after reset_pending
+  * clears and reset_sequence increments.
+  */
+diff --git a/Applications/TankerFlow/Firmware/Include/bsp_gpio.h b/Applications/TankerFlow/Firmware/Include/bsp_gpio.h
+index 836e32236918a71a91973a2eabfd425d2b743d19..3ff6b3d0edf9a5f2402e3c376fcacc233e631fad 100644
+--- a/Applications/TankerFlow/Firmware/Include/bsp_gpio.h
++++ b/Applications/TankerFlow/Firmware/Include/bsp_gpio.h
+@@ -23,6 +23,11 @@ void BSP_RS485_TxEnablePin_Write(uint8_t high);
+ void BSP_RS485_RxEnablePin_Write(uint8_t high);
+ 
+ uint8_t BSP_FlowDirection_Read(void);
++uint32_t BSP_FlowDirectionInterrupt_Count(void);
++uint8_t BSP_FlowDirectionEvent_Consume(uint32_t *sequence,
++                                       uint32_t *timestamp_ms,
++                                       uint8_t *level);
++void BSP_FlowDirectionInterrupt_IRQHandler(void);
+ uint8_t BSP_InsertDetect_Read(void);
+ 
+ void BSP_Charger_SetEnable(uint8_t enable);
+diff --git a/Applications/TankerFlow/Firmware/Include/main.h b/Applications/TankerFlow/Firmware/Include/main.h
+index 1ccca2ed0e7b9ba8e15694f248eeb095fb5b4eab..d3f9b9f172e0da27ebbbe7ee6bba1cd82af7d3f6 100644
+--- a/Applications/TankerFlow/Firmware/Include/main.h
++++ b/Applications/TankerFlow/Firmware/Include/main.h
+@@ -2,7 +2,7 @@
+ #define MAIN_H
+ 
+ #define APP_NAME       "tanker-flow-mcu"
+-#define APP_VERSION    "0.3.10-phase3e-d"
++#define APP_VERSION    "0.3.11-phase3e-d-fix1"
+ #define APP_HEARTBEAT_PERIOD_MS  (1000U)
+ 
+ #endif /* MAIN_H */
+diff --git a/Applications/TankerFlow/Firmware/Platform/APM32/platform_port_apm32.c b/Applications/TankerFlow/Firmware/Platform/APM32/platform_port_apm32.c
+index 593d727835dbe70f5457f6cd96d55ffa15479895..dfe6509f94a29942eaa296663e6a1d84f944ab24 100644
+--- a/Applications/TankerFlow/Firmware/Platform/APM32/platform_port_apm32.c
++++ b/Applications/TankerFlow/Firmware/Platform/APM32/platform_port_apm32.c
+@@ -76,6 +76,18 @@ uint8_t PlatformPort_FlowDirectionRead(void)
+     return BSP_FlowDirection_Read();
+ }
+ 
++uint8_t PlatformPort_FlowDirectionEventConsume(PlatformPort_FlowDirectionEvent_T *event)
++{
++    if (event == 0)
++    {
++        return 0U;
++    }
++
++    return BSP_FlowDirectionEvent_Consume(&event->sequence,
++                                          &event->timestamp_ms,
++                                          &event->level);
++}
++
+ uint8_t PlatformPort_FlowInsertDetectRead(void)
+ {
+     return BSP_InsertDetect_Read();
+diff --git a/Applications/TankerFlow/Firmware/Platform/Port/platform_port.h b/Applications/TankerFlow/Firmware/Platform/Port/platform_port.h
+index 79f324ee8f695da9b709fcb247c61b8d8aa57f44..47c2f5741ad397da8d22f419b14b2816a12158f6 100644
+--- a/Applications/TankerFlow/Firmware/Platform/Port/platform_port.h
++++ b/Applications/TankerFlow/Firmware/Platform/Port/platform_port.h
+@@ -41,6 +41,21 @@ void PlatformPort_FlowSetPower(uint8_t enable);
+ void PlatformPort_FlowTxEnablePinWrite(uint8_t high);
+ void PlatformPort_FlowRxEnablePinWrite(uint8_t high);
+ uint8_t PlatformPort_FlowDirectionRead(void);
++
++typedef struct
++{
++    uint32_t sequence;
++    uint32_t timestamp_ms;
++    uint8_t level;
++} PlatformPort_FlowDirectionEvent_T;
++
++/*
++ * Consume the latest direction edge captured by the platform ISR.
++ * Returns 1 when an event was available, otherwise 0. If several edges occur
++ * before foreground processing, sequence may jump; portable code can detect
++ * the missed intermediate edges without allocating an ISR queue.
++ */
++uint8_t PlatformPort_FlowDirectionEventConsume(PlatformPort_FlowDirectionEvent_T *event);
+ uint8_t PlatformPort_FlowInsertDetectRead(void);
+ 
+ #endif /* PLATFORM_PORT_H */
+diff --git a/Applications/TankerFlow/Firmware/Source/apm32f0xx_int.c b/Applications/TankerFlow/Firmware/Source/apm32f0xx_int.c
+index 1390f6b9738a4b82eb00279f6ec0ea790883a55c..70941f94e9d239b5a2f3f0281e02ce78babfec10 100644
+--- a/Applications/TankerFlow/Firmware/Source/apm32f0xx_int.c
++++ b/Applications/TankerFlow/Firmware/Source/apm32f0xx_int.c
+@@ -31,6 +31,7 @@ void SysTick_Handler(void)
+ void EINT4_15_IRQHandler(void)
+ {
+     BSP_ChargerInterrupt_IRQHandler();
++    BSP_FlowDirectionInterrupt_IRQHandler();
+ }
+ 
+ void DMA1_CH2_3_IRQHandler(void)
+diff --git a/Applications/TankerFlow/Firmware/Source/bsp_gpio.c b/Applications/TankerFlow/Firmware/Source/bsp_gpio.c
+index 3d949991758f373ad12789b1814ee4c3c52295c8..abff051a0e5162db41c695422bb4856800a70a11 100644
+--- a/Applications/TankerFlow/Firmware/Source/bsp_gpio.c
++++ b/Applications/TankerFlow/Firmware/Source/bsp_gpio.c
+@@ -1,6 +1,7 @@
+ #include "bsp_gpio.h"
+ 
+ #include "board_pinmap.h"
++#include "bsp_tick.h"
+ #include "apm32f0xx_eint.h"
+ #include "apm32f0xx_gpio.h"
+ #include "apm32f0xx_misc.h"
+@@ -10,6 +11,11 @@
+ static volatile uint32_t g_charger_interrupt_count;
+ static volatile uint8_t g_charger_interrupt_pending;
+ 
++static volatile uint32_t g_flow_direction_interrupt_count;
++static volatile uint32_t g_flow_direction_interrupt_timestamp_ms;
++static volatile uint8_t g_flow_direction_interrupt_level;
++static volatile uint8_t g_flow_direction_interrupt_pending;
++
+ static void GPIO_ConfigOutput(GPIO_T *port, uint16_t pin, uint8_t initial_high)
+ {
+     GPIO_Config_T config;
+@@ -45,6 +51,27 @@ static void GPIO_ConfigInput(GPIO_T *port, uint16_t pin, GPIO_PUPD_T pull)
+     GPIO_Config(port, &config);
+ }
+ 
++
++static void GPIO_ConfigFlowDirectionInterrupt(void)
++{
++    EINT_Config_T eint_config;
++
++    g_flow_direction_interrupt_count = 0U;
++    g_flow_direction_interrupt_timestamp_ms = 0U;
++    g_flow_direction_interrupt_level = GPIO_ReadInputBit(BOARD_FLOW_DIR_PORT, BOARD_FLOW_DIR_PIN);
++    g_flow_direction_interrupt_pending = 0U;
++
++    SYSCFG_EINTLine(SYSCFG_PORT_GPIOB, SYSCFG_PIN_14);
++    EINT_ConfigStructInit(&eint_config);
++    eint_config.line = EINT_LINE14;
++    eint_config.mode = EINT_MODE_INTERRUPT;
++    eint_config.trigger = EINT_TRIGGER_ALL;
++    eint_config.lineCmd = ENABLE;
++    EINT_Config(&eint_config);
++    EINT_ClearIntFlag(EINT_LINE14);
++    NVIC_EnableIRQRequest(EINT4_15_IRQn, 3U);
++}
++
+ static void GPIO_ConfigChargerInterrupt(void)
+ {
+     EINT_Config_T eint_config;
+@@ -83,6 +110,7 @@ void BSP_BoardGpio_Init(void)
+     GPIO_ConfigOutput(BOARD_RS485_RXEN_PORT, BOARD_RS485_RXEN_PIN, 0U);
+     GPIO_ConfigInput(BOARD_FLOW_DIR_PORT, BOARD_FLOW_DIR_PIN, GPIO_PUPD_NO);
+     GPIO_ConfigInput(BOARD_INSERT_PORT, BOARD_INSERT_PIN, GPIO_PUPD_NO);
++    GPIO_ConfigFlowDirectionInterrupt();
+ 
+     /* SGM41511 nCE is active-low. Default high keeps charging disabled during bring-up. */
+     GPIO_ConfigOutput(BOARD_CHARGE_EN_PORT, BOARD_CHARGE_EN_PIN, 1U);
+@@ -130,6 +158,53 @@ void BSP_RS485_RxEnablePin_Write(uint8_t high)
+ }
+ 
+ uint8_t BSP_FlowDirection_Read(void) { return GPIO_ReadInputBit(BOARD_FLOW_DIR_PORT, BOARD_FLOW_DIR_PIN); }
++
++uint32_t BSP_FlowDirectionInterrupt_Count(void)
++{
++    return g_flow_direction_interrupt_count;
++}
++
++uint8_t BSP_FlowDirectionEvent_Consume(uint32_t *sequence,
++                                       uint32_t *timestamp_ms,
++                                       uint8_t *level)
++{
++    uint8_t pending;
++
++    NVIC_DisableIRQRequest(EINT4_15_IRQn);
++    pending = g_flow_direction_interrupt_pending;
++    if (pending != 0U)
++    {
++        if (sequence != 0)
++        {
++            *sequence = g_flow_direction_interrupt_count;
++        }
++        if (timestamp_ms != 0)
++        {
++            *timestamp_ms = g_flow_direction_interrupt_timestamp_ms;
++        }
++        if (level != 0)
++        {
++            *level = g_flow_direction_interrupt_level;
++        }
++        g_flow_direction_interrupt_pending = 0U;
++    }
++    NVIC_EnableIRQRequest(EINT4_15_IRQn, 3U);
++
++    return pending;
++}
++
++void BSP_FlowDirectionInterrupt_IRQHandler(void)
++{
++    if (EINT_ReadIntFlag(EINT_LINE14) == SET)
++    {
++        EINT_ClearIntFlag(EINT_LINE14);
++        g_flow_direction_interrupt_count++;
++        g_flow_direction_interrupt_timestamp_ms = BSP_Tick_GetMs();
++        g_flow_direction_interrupt_level = BSP_FlowDirection_Read();
++        g_flow_direction_interrupt_pending = 1U;
++    }
++}
++
+ uint8_t BSP_InsertDetect_Read(void)   { return GPIO_ReadInputBit(BOARD_INSERT_PORT, BOARD_INSERT_PIN); }
+ 
+ void BSP_Charger_SetEnable(uint8_t enable)
+diff --git a/Applications/TankerFlow/Firmware/Tests/flow_meter_service_host_test.c b/Applications/TankerFlow/Firmware/Tests/flow_meter_service_host_test.c
+index 4145b53b736b474e96f4defbd17def2c21f5f5f5..ae9e158d5609bdb6c8339b3da797c41cb603063d 100644
+--- a/Applications/TankerFlow/Firmware/Tests/flow_meter_service_host_test.c
++++ b/Applications/TankerFlow/Firmware/Tests/flow_meter_service_host_test.c
+@@ -17,6 +17,8 @@ static uint16_t g_tx_length;
+ static uint16_t g_tx_return_length;
+ static uint8_t g_rx_frame[64];
+ static uint16_t g_rx_frame_length;
++static PlatformPort_FlowDirectionEvent_T g_direction_event;
++static uint8_t g_direction_event_pending;
+ 
+ static int Expect(int condition, const char *message)
+ {
+@@ -72,6 +74,18 @@ void PlatformPort_FlowRxEnablePinWrite(uint8_t high) { g_rx_level = high; }
+ uint8_t PlatformPort_FlowDirectionRead(void) { return g_direction_level; }
+ uint8_t PlatformPort_FlowInsertDetectRead(void) { return g_insert_level; }
+ 
++uint8_t PlatformPort_FlowDirectionEventConsume(PlatformPort_FlowDirectionEvent_T *event)
++{
++    if ((g_direction_event_pending == 0U) || (event == 0))
++    {
++        return 0U;
++    }
++
++    *event = g_direction_event;
++    g_direction_event_pending = 0U;
++    return 1U;
++}
++
+ static void EncodeZelzU32(uint32_t value, uint8_t *data)
+ {
+     data[0] = (uint8_t)((value >> 8U) & 0xFFU);
+@@ -99,6 +113,17 @@ static void QueueRealtimeResponse(uint8_t slave_address,
+     g_rx_frame_length = 17U;
+ }
+ 
++static void QueueDirectionEdge(uint8_t new_level,
++                               uint32_t timestamp_ms,
++                               uint32_t sequence)
++{
++    g_direction_level = new_level;
++    g_direction_event.sequence = sequence;
++    g_direction_event.timestamp_ms = timestamp_ms;
++    g_direction_event.level = new_level;
++    g_direction_event_pending = 1U;
++}
++
+ static void ResetHarness(void)
+ {
+     FlowMeter_Rs485Config_T rs485;
+@@ -112,6 +137,8 @@ static void ResetHarness(void)
+     g_tx_length = 0U;
+     g_tx_return_length = 8U;
+     g_rx_frame_length = 0U;
++    g_direction_event_pending = 0U;
++    memset(&g_direction_event, 0, sizeof(g_direction_event));
+     memset(g_tx_data, 0, sizeof(g_tx_data));
+     memset(g_rx_frame, 0, sizeof(g_rx_frame));
+ 
+@@ -166,7 +193,9 @@ int main(void)
+     ok &= Expect(snapshot.valid != 0U, "first response becomes valid snapshot");
+     ok &= Expect(snapshot.session_inflow_milli_l == 0U, "first sample establishes baseline only");
+     ok &= Expect(snapshot.session_outflow_milli_l == 0U, "first sample no outflow");
++    ok &= Expect(snapshot.session_unclassified_milli_l == 0U, "first sample no unclassified volume");
+     ok &= Expect(snapshot.session_net_milli_l == 0, "first sample net zero");
++    ok &= Expect(snapshot.session_meter_absolute_milli_l == 0U, "coarse meter total baseline");
+     ok &= Expect(snapshot.direction == FLOW_METER_SERVICE_DIRECTION_INFLOW, "inflow level mapping");
+     ok &= Expect(snapshot.inserted == 1U, "insert detect captured");
+ 
+@@ -175,58 +204,95 @@ int main(void)
+     FlowMeterService_GetSnapshot(&snapshot);
+     ok &= Expect(snapshot.session_inflow_milli_l == 50000U, "same-direction inflow delta accumulated");
+     ok &= Expect(snapshot.session_net_milli_l == 50000, "net = inflow - outflow");
+-
+-    g_direction_level = 0U;
+-    g_now_ms = 200U;
+-    PollWithResponse(180000U, 101U, 1400U);
++    ok &= Expect(snapshot.session_meter_absolute_milli_l == 1000U, "meter total used as coarse absolute cross-check");
++
++    /*
++     * Direction edge occurs before the regular 200 ms poll. The service must
++     * consume the ISR event and issue an immediate boundary read at 150 ms.
++     */
++    g_now_ms = 150U;
++    QueueDirectionEdge(0U, 145U, 1U);
++    FlowMeterService_Process();
++    ok &= Expect(FlowMeterService_GetState() == FLOW_METER_SERVICE_WAIT_RESPONSE,
++                 "direction edge forces immediate meter read");
++    QueueRealtimeResponse(1U, 180000U, 101U, 1400U);
++    FlowMeterService_Process();
+     FlowMeterService_GetSnapshot(&snapshot);
+-    ok &= Expect(snapshot.session_inflow_milli_l == 50000U, "direction-change interval not signed arbitrarily");
+-    ok &= Expect(snapshot.session_outflow_milli_l == 0U, "direction-change interval rebased");
+-
+-    g_now_ms = 300U;
++    ok &= Expect(snapshot.direction == FLOW_METER_SERVICE_DIRECTION_OUTFLOW,
++                 "direction interrupt updates current direction");
++    ok &= Expect(snapshot.direction_event_sequence == 1U,
++                 "direction interrupt sequence captured");
++    ok &= Expect(snapshot.last_direction_event_ms == 145U,
++                 "direction interrupt timestamp captured");
++    ok &= Expect(snapshot.session_inflow_milli_l == 50000U,
++                 "boundary delta not misclassified as inflow");
++    ok &= Expect(snapshot.session_outflow_milli_l == 0U,
++                 "boundary delta not misclassified as outflow");
++    ok &= Expect(snapshot.session_unclassified_milli_l == 30000U,
++                 "boundary delta preserved as unclassified volume");
++    ok &= Expect(snapshot.direction_boundary_pending == 0U,
++                 "boundary resolved on valid meter sample");
++
++    g_now_ms = 250U;
+     PollWithResponse(200000U, 102U, 1500U);
+     FlowMeterService_GetSnapshot(&snapshot);
+-    ok &= Expect(snapshot.session_outflow_milli_l == 20000U, "stable outflow delta accumulated");
+-    ok &= Expect(snapshot.session_net_milli_l == 30000, "directional net total");
++    ok &= Expect(snapshot.session_outflow_milli_l == 20000U,
++                 "stable outflow delta accumulated after boundary");
++    ok &= Expect(snapshot.session_net_milli_l == 30000,
++                 "directional net total excludes ambiguous boundary volume");
++    ok &= Expect(snapshot.session_meter_absolute_milli_l == 2000U,
++                 "coarse total continues from software session baseline");
+ 
+     FlowMeterService_RequestSessionReset();
+-    ok &= Expect(FlowMeterService_IsSessionResetPending() != 0U, "software session reset becomes pending");
+-    g_now_ms = 310U;
++    ok &= Expect(FlowMeterService_IsSessionResetPending() != 0U,
++                 "software session reset becomes pending");
++    g_now_ms = 260U;
+     PollWithResponse(210000U, 102U, 1500U);
+     FlowMeterService_GetSnapshot(&snapshot);
+     ok &= Expect(snapshot.reset_pending == 0U, "reset completes on valid sample");
+     ok &= Expect(snapshot.reset_sequence == 1U, "reset sequence increments");
+-    ok &= Expect(snapshot.reset_effective_ms == 310U, "reset effective timestamp recorded");
++    ok &= Expect(snapshot.reset_effective_ms == 260U, "reset effective timestamp recorded");
+     ok &= Expect(snapshot.session_inflow_milli_l == 0U, "reset clears inflow session total");
+     ok &= Expect(snapshot.session_outflow_milli_l == 0U, "reset clears outflow session total");
++    ok &= Expect(snapshot.session_unclassified_milli_l == 0U, "reset clears unclassified volume");
+     ok &= Expect(snapshot.session_net_milli_l == 0, "reset clears net session total");
++    ok &= Expect(snapshot.session_meter_absolute_milli_l == 0U,
++                 "reset establishes new coarse total baseline without clearing meter");
+ 
+-    g_now_ms = 410U;
++    g_now_ms = 360U;
+     PollWithResponse(225000U, 103U, 1600U);
+     FlowMeterService_GetSnapshot(&snapshot);
+-    ok &= Expect(snapshot.session_outflow_milli_l == 15000U, "post-reset outflow starts from new baseline");
+-    ok &= Expect(snapshot.session_net_milli_l == -15000, "post-reset net may be negative");
++    ok &= Expect(snapshot.session_outflow_milli_l == 15000U,
++                 "post-reset outflow starts from new baseline");
++    ok &= Expect(snapshot.session_net_milli_l == -15000,
++                 "post-reset net may be negative");
++    ok &= Expect(snapshot.session_meter_absolute_milli_l == 1000U,
++                 "post-reset coarse total delta tracked without meter-side clear");
+     ok &= Expect(FlowMeterService_IsFresh(1U) != 0U, "fresh snapshot");
+ 
+-    /* Meter-side batch reset/decrease: rebase instead of adding a huge wrap delta. */
+-    g_now_ms = 510U;
++    /* Meter-side high-resolution counter decrease: rebase, never add wrap volume. */
++    g_now_ms = 460U;
+     PollWithResponse(1000U, 104U, 1000U);
+     FlowMeterService_GetSnapshot(&snapshot);
+-    ok &= Expect(snapshot.session_outflow_milli_l == 15000U, "meter counter decrease does not corrupt session total");
++    ok &= Expect(snapshot.session_outflow_milli_l == 15000U,
++                 "meter counter decrease does not corrupt session total");
+ 
+     /* Timeout triggers one retry, then a later response completes it. */
+-    g_now_ms = 610U;
++    g_now_ms = 560U;
+     FlowMeterService_Process();
+-    g_now_ms = 661U;
++    g_now_ms = 611U;
+     FlowMeterService_Process();
+-    ok &= Expect(FlowMeterService_GetState() == FLOW_METER_SERVICE_WAIT_RESPONSE, "timeout retry remains waiting");
++    ok &= Expect(FlowMeterService_GetState() == FLOW_METER_SERVICE_WAIT_RESPONSE,
++                 "timeout retry remains waiting");
+     QueueRealtimeResponse(1U, 2000U, 104U, 900U);
+     FlowMeterService_Process();
+ 
+     FlowMeterService_GetStats(&stats);
+     ok &= Expect(stats.responses_ok >= 6U, "valid response statistics");
++    ok &= Expect(stats.direction_interrupts == 1U, "direction IRQ statistic");
+     ok &= Expect(stats.direction_changes == 1U, "direction change statistic");
+-    ok &= Expect(stats.ambiguous_direction_intervals == 1U, "ambiguous direction interval statistic");
++    ok &= Expect(stats.ambiguous_direction_intervals == 1U,
++                 "ambiguous boundary statistic");
+     ok &= Expect(stats.session_resets == 1U, "session reset statistic");
+     ok &= Expect(stats.meter_rebases == 1U, "meter rebase statistic");
+     ok &= Expect(stats.timeouts == 1U, "timeout statistic");
