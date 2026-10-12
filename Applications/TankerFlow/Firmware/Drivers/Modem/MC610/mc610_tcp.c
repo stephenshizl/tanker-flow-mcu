@@ -8,6 +8,7 @@
 #define MC610_TCP_MIPCALL_TIMEOUT_MS       (30000U)
 #define MC610_TCP_MIPOPEN_TIMEOUT_MS       (5000U)
 #define MC610_TCP_MIPCLOSE_TIMEOUT_MS      (3000U)
+#define MC610_TCP_RX_CONFIG_TIMEOUT_MS      (1000U)
 
 typedef enum
 {
@@ -27,6 +28,11 @@ static uint8_t g_operation_event_valid;
 static uint8_t g_transaction_started;
 static uint8_t g_initialized;
 static uint32_t g_retry_start_ms;
+static uint8_t g_rx_buffer[MC610_TCP_RX_BUFFER_SIZE];
+static uint16_t g_rx_head;
+static uint16_t g_rx_tail;
+static uint16_t g_rx_count;
+static uint32_t g_rx_last_sequence;
 
 static void MC610Tcp_Clear(void *dst, uint16_t length)
 {
@@ -207,6 +213,20 @@ static uint8_t MC610Tcp_BuildMipClose(char *command, uint16_t capacity)
         (MC610Tcp_AppendUint(command, capacity, &length, g_config.socket_id) != 0U));
 }
 
+static uint8_t MC610Tcp_BuildMipDsets(char *command, uint16_t capacity)
+{
+    uint16_t length;
+
+    length = 0U;
+    command[0] = '\0';
+    return (uint8_t)(
+        (MC610Tcp_AppendText(command, capacity, &length, "AT+MIPDSETS=") != 0U) &&
+        (MC610Tcp_AppendUint(command, capacity, &length, g_config.socket_id) != 0U) &&
+        (MC610Tcp_AppendChar(command, capacity, &length, ',') != 0U) &&
+        (MC610Tcp_AppendUint(command, capacity, &length, MC610_TCP_RX_CHUNK_SIZE) != 0U) &&
+        (MC610Tcp_AppendText(command, capacity, &length, ",0") != 0U));
+}
+
 static uint8_t MC610Tcp_StartsWith(const char *line, uint16_t length, const char *prefix)
 {
     uint16_t index;
@@ -241,6 +261,65 @@ static uint8_t MC610Tcp_MatchMipClose(const char *line, uint16_t length, void *u
                      (MC610Tcp_StartsWith(line, length, "+MIPSTAT:") != 0U));
 }
 
+static void MC610Tcp_FlushRxInternal(void)
+{
+    g_rx_head = 0U;
+    g_rx_tail = 0U;
+    g_rx_count = 0U;
+    g_rx_last_sequence = 0U;
+    g_status.rx_available = 0U;
+    g_status.rx_overflow = 0U;
+    Modem4G_FlushTcpRx();
+}
+
+static void MC610Tcp_DrainRxChunks(void)
+{
+    Modem4G_TcpRxChunk_T chunk;
+    uint16_t index;
+    uint16_t free_space;
+
+    while (Modem4G_PopTcpRxChunk(&chunk) != 0U)
+    {
+        if ((g_rx_last_sequence != 0U) &&
+            (chunk.sequence != (uint32_t)(g_rx_last_sequence + 1U)))
+        {
+            uint32_t gap;
+
+            gap = (uint32_t)(chunk.sequence - g_rx_last_sequence - 1U);
+            g_status.rx_overflow = 1U;
+            g_stats.rx_sequence_gaps += gap;
+        }
+        g_rx_last_sequence = chunk.sequence;
+
+        if ((chunk.socket_id != g_config.socket_id) ||
+            ((g_status.state != MC610_TCP_STATE_RX_CHUNK_CONFIGURING) &&
+             (g_status.state != MC610_TCP_STATE_CONNECTED)))
+        {
+            g_stats.ignored_rx_chunks++;
+            continue;
+        }
+
+        free_space = (uint16_t)(MC610_TCP_RX_BUFFER_SIZE - g_rx_count);
+        if (chunk.length > free_space)
+        {
+            g_status.rx_overflow = 1U;
+            g_stats.rx_overflow_chunks++;
+            g_stats.rx_dropped_bytes += chunk.length;
+            continue;
+        }
+
+        for (index = 0U; index < chunk.length; index++)
+        {
+            g_rx_buffer[g_rx_head] = chunk.data[index];
+            g_rx_head = (uint16_t)((g_rx_head + 1U) % MC610_TCP_RX_BUFFER_SIZE);
+        }
+        g_rx_count = (uint16_t)(g_rx_count + chunk.length);
+        g_status.rx_available = g_rx_count;
+        g_stats.rx_chunks++;
+        g_stats.rx_bytes += chunk.length;
+    }
+}
+
 static void MC610Tcp_SetState(MC610Tcp_State_T state)
 {
     g_status.state = state;
@@ -260,6 +339,7 @@ static void MC610Tcp_ScheduleRetry(MC610Tcp_Error_T error)
 {
     MC610Tcp_SetError(error);
     g_status.connected = 0U;
+    MC610Tcp_FlushRxInternal();
     if (g_status.desired_running == 0U)
     {
         if (g_status.pdp_active != 0U)
@@ -336,7 +416,8 @@ static void MC610Tcp_HandleNetworkEvent(const Modem4G_NetworkEvent_T *event)
         {
             g_status.pdp_active = 0U;
         }
-        if (g_status.state == MC610_TCP_STATE_CONNECTED)
+        if ((g_status.state == MC610_TCP_STATE_CONNECTED) ||
+            (g_status.state == MC610_TCP_STATE_RX_CHUNK_CONFIGURING))
         {
             MC610Tcp_ScheduleRetry(MC610_TCP_ERROR_SOCKET_CLOSED);
         }
@@ -368,6 +449,35 @@ static void MC610Tcp_DrainNetworkEvents(void)
     {
         MC610Tcp_HandleNetworkEvent(&event);
     }
+}
+
+static uint8_t MC610Tcp_StartSync(const char *command)
+{
+    AT_CoreTransaction_T transaction;
+    AT_CoreStartResult_T result;
+
+    transaction.command = command;
+    transaction.response_prefix = 0;
+    transaction.type = AT_CORE_TRANSACTION_SYNC_OK;
+    transaction.response_timeout_ms = MC610_TCP_RX_CONFIG_TIMEOUT_MS;
+    transaction.operation_timeout_ms = 0U;
+    transaction.async_match = 0;
+
+    result = Modem4G_StartTransaction(&transaction);
+    if (result == AT_CORE_START_BUSY)
+    {
+        return 0U;
+    }
+    if (result != AT_CORE_START_OK)
+    {
+        MC610Tcp_ScheduleRetry(MC610_TCP_ERROR_TRANSACTION_START);
+        return 0U;
+    }
+
+    g_transaction_started = 1U;
+    g_operation = MC610_TCP_OPERATION_NONE;
+    g_operation_event_valid = 0U;
+    return 1U;
 }
 
 static uint8_t MC610Tcp_StartAsync(const char *command,
@@ -448,7 +558,7 @@ static void MC610Tcp_ProcessPdpActivate(void)
         g_status.last_error = MC610_TCP_ERROR_NONE;
         if (g_status.desired_running != 0U)
         {
-            MC610Tcp_SetState(MC610_TCP_STATE_SOCKET_OPENING);
+            MC610Tcp_SetState(MC610_TCP_STATE_RX_FORMAT_CONFIGURING);
         }
         else
         {
@@ -457,6 +567,33 @@ static void MC610Tcp_ProcessPdpActivate(void)
         return;
     }
     MC610Tcp_ScheduleRetry(MC610_TCP_ERROR_PDP_ACTIVATE);
+}
+
+static void MC610Tcp_ProcessRxFormatConfig(void)
+{
+    static const char command[] = "AT+GTSET=\"IPRFMT\",0";
+    AT_CoreResult_T result;
+
+    if (g_transaction_started == 0U)
+    {
+        if (MC610Tcp_StartSync(command) != 0U)
+        {
+            g_stats.rx_format_config_attempts++;
+        }
+        return;
+    }
+
+    if (MC610Tcp_TransactionComplete(&result) == 0U)
+    {
+        return;
+    }
+    if (result == AT_CORE_RESULT_OK)
+    {
+        MC610Tcp_FlushRxInternal();
+        MC610Tcp_SetState(MC610_TCP_STATE_SOCKET_OPENING);
+        return;
+    }
+    MC610Tcp_ScheduleRetry(MC610_TCP_ERROR_RX_FORMAT_CONFIG);
 }
 
 static void MC610Tcp_ProcessSocketOpen(void)
@@ -491,12 +628,11 @@ static void MC610Tcp_ProcessSocketOpen(void)
         (g_operation_event.socket_id == g_config.socket_id) &&
         (g_operation_event.result == 1U))
     {
-        g_status.connected = 1U;
+        g_status.connected = 0U;
         g_status.last_error = MC610_TCP_ERROR_NONE;
-        g_stats.connect_successes++;
         if (g_status.desired_running != 0U)
         {
-            MC610Tcp_SetState(MC610_TCP_STATE_CONNECTED);
+            MC610Tcp_SetState(MC610_TCP_STATE_RX_CHUNK_CONFIGURING);
         }
         else
         {
@@ -505,6 +641,44 @@ static void MC610Tcp_ProcessSocketOpen(void)
         return;
     }
     MC610Tcp_ScheduleRetry(MC610_TCP_ERROR_SOCKET_OPEN);
+}
+
+static void MC610Tcp_ProcessRxChunkConfig(void)
+{
+    char command[MC610_TCP_COMMAND_MAX];
+    AT_CoreResult_T result;
+
+    if (g_transaction_started == 0U)
+    {
+        if (MC610Tcp_BuildMipDsets(command, sizeof(command)) == 0U)
+        {
+            MC610Tcp_SetError(MC610_TCP_ERROR_COMMAND_BUILD);
+            MC610Tcp_SetState(MC610_TCP_STATE_SOCKET_CLOSING);
+            return;
+        }
+        if (MC610Tcp_StartSync(command) != 0U)
+        {
+            g_stats.rx_chunk_config_attempts++;
+        }
+        return;
+    }
+
+    if (MC610Tcp_TransactionComplete(&result) == 0U)
+    {
+        return;
+    }
+    if (result == AT_CORE_RESULT_OK)
+    {
+        g_status.connected = 1U;
+        g_status.last_error = MC610_TCP_ERROR_NONE;
+        g_stats.connect_successes++;
+        MC610Tcp_SetState(MC610_TCP_STATE_CONNECTED);
+        return;
+    }
+
+    MC610Tcp_SetError(MC610_TCP_ERROR_RX_CHUNK_CONFIG);
+    g_status.connected = 0U;
+    MC610Tcp_SetState(MC610_TCP_STATE_SOCKET_CLOSING);
 }
 
 static void MC610Tcp_ProcessSocketClose(void)
@@ -597,6 +771,7 @@ int MC610Tcp_Init(const MC610Tcp_Config_T *config)
     g_operation_event_valid = 0U;
     g_transaction_started = 0U;
     g_retry_start_ms = g_status.last_state_change_ms;
+    MC610Tcp_FlushRxInternal();
     g_initialized = 1U;
     return MC610_TCP_OK;
 }
@@ -614,7 +789,9 @@ int MC610Tcp_Start(void)
         return MC610_TCP_OK;
     }
     if ((g_status.state == MC610_TCP_STATE_PDP_ACTIVATING) ||
+        (g_status.state == MC610_TCP_STATE_RX_FORMAT_CONFIGURING) ||
         (g_status.state == MC610_TCP_STATE_SOCKET_OPENING) ||
+        (g_status.state == MC610_TCP_STATE_RX_CHUNK_CONFIGURING) ||
         (g_status.state == MC610_TCP_STATE_SOCKET_CLOSING) ||
         (g_status.state == MC610_TCP_STATE_PDP_DEACTIVATING))
     {
@@ -643,6 +820,7 @@ void MC610Tcp_Process(void)
     }
 
     MC610Tcp_DrainNetworkEvents();
+    MC610Tcp_DrainRxChunks();
 
     if ((g_status.state != MC610_TCP_STATE_STOPPED) &&
         (g_status.state != MC610_TCP_STATE_ERROR) &&
@@ -690,6 +868,17 @@ void MC610Tcp_Process(void)
             MC610Tcp_ProcessPdpActivate();
             break;
 
+        case MC610_TCP_STATE_RX_FORMAT_CONFIGURING:
+            if ((g_status.desired_running == 0U) && (g_transaction_started == 0U))
+            {
+                MC610Tcp_SetState(MC610_TCP_STATE_PDP_DEACTIVATING);
+            }
+            else
+            {
+                MC610Tcp_ProcessRxFormatConfig();
+            }
+            break;
+
         case MC610_TCP_STATE_SOCKET_OPENING:
             if ((g_status.desired_running == 0U) && (g_status.pdp_active != 0U) &&
                 (g_transaction_started == 0U))
@@ -699,6 +888,17 @@ void MC610Tcp_Process(void)
             else
             {
                 MC610Tcp_ProcessSocketOpen();
+            }
+            break;
+
+        case MC610_TCP_STATE_RX_CHUNK_CONFIGURING:
+            if ((g_status.desired_running == 0U) && (g_transaction_started == 0U))
+            {
+                MC610Tcp_SetState(MC610_TCP_STATE_SOCKET_CLOSING);
+            }
+            else
+            {
+                MC610Tcp_ProcessRxChunkConfig();
             }
             break;
 
@@ -784,4 +984,35 @@ void MC610Tcp_GetStats(MC610Tcp_Stats_T *stats)
     {
         *stats = g_stats;
     }
+}
+
+uint16_t MC610Tcp_RxAvailable(void)
+{
+    return g_rx_count;
+}
+
+uint16_t MC610Tcp_Read(uint8_t *data, uint16_t capacity)
+{
+    uint16_t count;
+
+    if ((data == 0) || (capacity == 0U))
+    {
+        return 0U;
+    }
+
+    count = 0U;
+    while ((count < capacity) && (g_rx_count > 0U))
+    {
+        data[count] = g_rx_buffer[g_rx_tail];
+        g_rx_tail = (uint16_t)((g_rx_tail + 1U) % MC610_TCP_RX_BUFFER_SIZE);
+        g_rx_count--;
+        count++;
+    }
+    g_status.rx_available = g_rx_count;
+    return count;
+}
+
+void MC610Tcp_FlushRx(void)
+{
+    MC610Tcp_FlushRxInternal();
 }

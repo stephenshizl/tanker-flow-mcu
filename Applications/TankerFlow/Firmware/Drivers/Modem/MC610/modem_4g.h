@@ -5,6 +5,8 @@
 
 #include "at_core.h"
 
+#define MODEM4G_TCP_RX_CHUNK_MAX  (256U)
+
 typedef enum
 {
     MODEM4G_STATE_OFF = 0,
@@ -91,6 +93,19 @@ typedef struct
     uint8_t status;
 } Modem4G_DataEvent_T;
 
+/*
+ * One decoded +MIPRTCP receive indication in IPRFMT=0 mode.
+ * remaining_bytes is the MC610 <Left> field and data[] is decoded from HEX.
+ */
+typedef struct
+{
+    uint32_t sequence;
+    uint32_t remaining_bytes;
+    uint16_t length;
+    uint8_t socket_id;
+    uint8_t data[MODEM4G_TCP_RX_CHUNK_MAX];
+} Modem4G_TcpRxChunk_T;
+
 typedef struct
 {
     uint32_t urc_count;
@@ -112,6 +127,10 @@ typedef struct
     uint32_t mippush_count;
     uint32_t mipxoff_count;
     uint32_t mipxon_count;
+    uint32_t tcp_rx_chunks;
+    uint32_t tcp_rx_bytes;
+    uint32_t tcp_rx_decode_errors;
+    uint32_t tcp_rx_queue_overflow;
 } Modem4G_Stats_T;
 
 void Modem4G_Init(void);
@@ -145,6 +164,13 @@ uint8_t Modem4G_PopNetworkEvent(Modem4G_NetworkEvent_T *event);
  * MC610Tcp and the TX/RX data plane cannot consume each other's notifications.
  */
 uint8_t Modem4G_PopDataEvent(Modem4G_DataEvent_T *event);
+
+/*
+ * Pop one decoded TCP receive chunk captured from +MIPRTCP in IPRFMT=0 mode.
+ * This is a small bare-metal queue; the caller should drain it every loop.
+ */
+uint8_t Modem4G_PopTcpRxChunk(Modem4G_TcpRxChunk_T *chunk);
+void Modem4G_FlushTcpRx(void);
 
 /*
  * Reserve the AT channel while a prompt-mode raw payload is in progress.

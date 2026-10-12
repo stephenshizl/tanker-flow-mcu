@@ -6,6 +6,7 @@
 #define MODEM4G_LAST_URC_MAX            (128U)
 #define MODEM4G_NETWORK_EVENT_QUEUE_SIZE (4U)
 #define MODEM4G_DATA_EVENT_QUEUE_SIZE    (6U)
+#define MODEM4G_TCP_RX_QUEUE_SIZE         (2U)
 
 /* MC610 hardware-guide minimums plus small scheduling margin. */
 #define MODEM4G_VBAT_SETTLE_MS          (30U)
@@ -151,6 +152,11 @@ static uint8_t g_data_event_head;
 static uint8_t g_data_event_tail;
 static uint8_t g_data_event_count;
 static uint32_t g_data_event_sequence;
+static Modem4G_TcpRxChunk_T g_tcp_rx_chunks[MODEM4G_TCP_RX_QUEUE_SIZE];
+static uint8_t g_tcp_rx_head;
+static uint8_t g_tcp_rx_tail;
+static uint8_t g_tcp_rx_count;
+static uint32_t g_tcp_rx_sequence;
 static uint8_t g_raw_write_active;
 static uint32_t g_state_start_ms;
 static uint32_t g_boot_sync_start_ms;
@@ -248,6 +254,76 @@ static void Modem4G_ResetDataEvents(void)
     g_data_event_tail = 0U;
     g_data_event_count = 0U;
     g_data_event_sequence = 0U;
+}
+
+static void Modem4G_ResetTcpRx(void)
+{
+    g_tcp_rx_head = 0U;
+    g_tcp_rx_tail = 0U;
+    g_tcp_rx_count = 0U;
+    g_tcp_rx_sequence = 0U;
+}
+
+void Modem4G_FlushTcpRx(void)
+{
+    g_tcp_rx_head = 0U;
+    g_tcp_rx_tail = 0U;
+    g_tcp_rx_count = 0U;
+}
+
+static void Modem4G_PushTcpRxChunk(uint8_t socket_id,
+                                      uint32_t remaining_bytes,
+                                      const char *hex_data,
+                                      uint16_t decoded_length)
+{
+    Modem4G_TcpRxChunk_T *chunk;
+    uint16_t index;
+    uint8_t high;
+    uint8_t low;
+
+    if (g_tcp_rx_count >= MODEM4G_TCP_RX_QUEUE_SIZE)
+    {
+        g_tcp_rx_tail = (uint8_t)((g_tcp_rx_tail + 1U) % MODEM4G_TCP_RX_QUEUE_SIZE);
+        g_tcp_rx_count--;
+        g_modem_stats.tcp_rx_queue_overflow++;
+    }
+
+    chunk = &g_tcp_rx_chunks[g_tcp_rx_head];
+    g_tcp_rx_sequence++;
+    chunk->sequence = g_tcp_rx_sequence;
+    chunk->remaining_bytes = remaining_bytes;
+    chunk->length = decoded_length;
+    chunk->socket_id = socket_id;
+
+    for (index = 0U; index < decoded_length; index++)
+    {
+        char high_char;
+        char low_char;
+
+        high_char = hex_data[(uint16_t)(index * 2U)];
+        low_char = hex_data[(uint16_t)(index * 2U + 1U)];
+        high = (uint8_t)((high_char <= '9') ?
+                         (high_char - '0') :
+                         ((high_char <= 'F') ? (high_char - 'A' + 10) :
+                                               (high_char - 'a' + 10)));
+        low = (uint8_t)((low_char <= '9') ?
+                        (low_char - '0') :
+                        ((low_char <= 'F') ? (low_char - 'A' + 10) :
+                                             (low_char - 'a' + 10)));
+        chunk->data[index] = (uint8_t)((high << 4) | low);
+    }
+
+    g_tcp_rx_head = (uint8_t)((g_tcp_rx_head + 1U) % MODEM4G_TCP_RX_QUEUE_SIZE);
+    g_tcp_rx_count++;
+    g_modem_stats.tcp_rx_chunks++;
+    g_modem_stats.tcp_rx_bytes += decoded_length;
+}
+
+static uint8_t Modem4G_IsHexChar(char value)
+{
+    return (uint8_t)(((value >= '0') && (value <= '9')) ||
+                     ((value >= 'A') && (value <= 'F')) ||
+                     ((value >= 'a') && (value <= 'f')));
 }
 
 static void Modem4G_PushDataEvent(Modem4G_DataEventType_T type,
@@ -621,9 +697,54 @@ static void Modem4G_HandleStartupUrc(const char *line, uint16_t length)
 
 static void Modem4G_HandleMipTcpRxUrc(const char *line, uint16_t length)
 {
-    (void)line;
-    (void)length;
+    const char *cursor;
+    const char *end;
+    uint32_t socket_id;
+    uint32_t remaining_bytes;
+    uint16_t hex_length;
+    uint16_t decoded_length;
+    uint16_t index;
+
     g_modem_stats.miprtcp_count++;
+    cursor = Modem4G_AfterColon(line);
+    if ((cursor == 0) ||
+        (Modem4G_ParseUint32(&cursor, &socket_id) == 0U) ||
+        (socket_id > 255U) ||
+        (Modem4G_ConsumeComma(&cursor) == 0U) ||
+        (Modem4G_ParseUint32(&cursor, &remaining_bytes) == 0U) ||
+        (Modem4G_ConsumeComma(&cursor) == 0U))
+    {
+        g_modem_stats.tcp_rx_decode_errors++;
+        return;
+    }
+
+    end = &line[length];
+    while ((end > cursor) && ((end[-1] == ' ') || (end[-1] == '\t')))
+    {
+        end--;
+    }
+    hex_length = (uint16_t)(end - cursor);
+    if (((hex_length & 1U) != 0U) ||
+        ((hex_length / 2U) > MODEM4G_TCP_RX_CHUNK_MAX))
+    {
+        g_modem_stats.tcp_rx_decode_errors++;
+        return;
+    }
+
+    for (index = 0U; index < hex_length; index++)
+    {
+        if (Modem4G_IsHexChar(cursor[index]) == 0U)
+        {
+            g_modem_stats.tcp_rx_decode_errors++;
+            return;
+        }
+    }
+
+    decoded_length = (uint16_t)(hex_length / 2U);
+    Modem4G_PushTcpRxChunk((uint8_t)socket_id,
+                           remaining_bytes,
+                           cursor,
+                           decoded_length);
 }
 
 static void Modem4G_HandleMipUdpRxUrc(const char *line, uint16_t length)
@@ -919,6 +1040,7 @@ static void Modem4G_EnterHardwareReset(void)
     g_modem_stats.reset_count++;
     Modem4G_ResetNetworkEvents();
     Modem4G_ResetDataEvents();
+    Modem4G_ResetTcpRx();
     g_raw_write_active = 0U;
     AT_Core_Reset(&g_at_core);
     PlatformPort_ModemPowerKeyRelease();
@@ -1385,6 +1507,7 @@ void Modem4G_Init(void)
     g_last_urc[0] = '\0';
     Modem4G_ResetNetworkEvents();
     Modem4G_ResetDataEvents();
+    Modem4G_ResetTcpRx();
     g_raw_write_active = 0U;
     g_state_start_ms = PlatformPort_GetMs();
     g_boot_sync_start_ms = g_state_start_ms;
@@ -1425,6 +1548,7 @@ void Modem4G_Start(void)
     g_status.last_ok_ms = 0U;
     Modem4G_ResetNetworkEvents();
     Modem4G_ResetDataEvents();
+    Modem4G_ResetTcpRx();
     g_raw_write_active = 0U;
     Modem4G_ResetCommandTracking();
     Modem4G_SetState(MODEM4G_STATE_VBAT_SETTLE);
@@ -1561,6 +1685,19 @@ uint8_t Modem4G_PopDataEvent(Modem4G_DataEvent_T *event)
     g_data_event_tail = (uint8_t)((g_data_event_tail + 1U) %
                                   MODEM4G_DATA_EVENT_QUEUE_SIZE);
     g_data_event_count--;
+    return 1U;
+}
+
+uint8_t Modem4G_PopTcpRxChunk(Modem4G_TcpRxChunk_T *chunk)
+{
+    if ((chunk == 0) || (g_tcp_rx_count == 0U))
+    {
+        return 0U;
+    }
+
+    *chunk = g_tcp_rx_chunks[g_tcp_rx_tail];
+    g_tcp_rx_tail = (uint8_t)((g_tcp_rx_tail + 1U) % MODEM4G_TCP_RX_QUEUE_SIZE);
+    g_tcp_rx_count--;
     return 1U;
 }
 

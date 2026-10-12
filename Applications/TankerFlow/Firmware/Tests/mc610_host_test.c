@@ -467,6 +467,41 @@ static void Test_StructuredNetworkEvents(void)
     CHECK_TRUE(event.acknowledged_bytes == 5678U);
 }
 
+static void Test_TcpRxHexDecode(void)
+{
+    Modem4G_TcpRxChunk_T chunk;
+    Modem4G_Stats_T stats;
+
+    Test_ResetIo();
+    Modem4G_Init();
+
+    Test_Feed("+MIPRTCP: 1,5,48656C6C6F\r\n");
+    CHECK_TRUE(Modem4G_PopTcpRxChunk(&chunk) != 0U);
+    CHECK_TRUE(chunk.socket_id == 1U);
+    CHECK_TRUE(chunk.remaining_bytes == 5U);
+    CHECK_TRUE(chunk.length == 5U);
+    CHECK_TRUE(memcmp(chunk.data, "Hello", 5U) == 0);
+
+    Test_Feed("+MIPRTCP: 1,0,123\r\n");
+    CHECK_TRUE(Modem4G_PopTcpRxChunk(&chunk) == 0U);
+    Test_Feed("+MIPRTCP: 1,0,GG\r\n");
+    CHECK_TRUE(Modem4G_PopTcpRxChunk(&chunk) == 0U);
+
+    Test_Feed("+MIPRTCP: 1,0,31\r\n");
+    Test_Feed("+MIPRTCP: 1,0,32\r\n");
+    Test_Feed("+MIPRTCP: 1,0,33\r\n");
+    CHECK_TRUE(Modem4G_PopTcpRxChunk(&chunk) != 0U);
+    CHECK_TRUE((chunk.length == 1U) && (chunk.data[0] == '2'));
+    CHECK_TRUE(Modem4G_PopTcpRxChunk(&chunk) != 0U);
+    CHECK_TRUE((chunk.length == 1U) && (chunk.data[0] == '3'));
+
+    Modem4G_GetStats(&stats);
+    CHECK_TRUE(stats.tcp_rx_decode_errors == 2U);
+    CHECK_TRUE(stats.tcp_rx_queue_overflow == 1U);
+    CHECK_TRUE(stats.tcp_rx_chunks == 4U);
+    CHECK_TRUE(stats.tcp_rx_bytes == 8U);
+}
+
 static void Test_StructuredDataEventsAndRawWriteGuard(void)
 {
     Modem4G_DataEvent_T event;
@@ -558,6 +593,7 @@ int main(void)
     Test_UrcDispatcherWhileIdle();
     Test_AsyncTransactionKeepsUnrelatedUrcSeparate();
     Test_StructuredNetworkEvents();
+    Test_TcpRxHexDecode();
     Test_StructuredDataEventsAndRawWriteGuard();
     Test_BootTimeoutUsesHardwareReset();
 

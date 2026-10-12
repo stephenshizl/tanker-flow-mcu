@@ -19,6 +19,11 @@ typedef struct
     uint8_t event_head;
     uint8_t event_tail;
     uint8_t event_count;
+    Modem4G_TcpRxChunk_T rx_chunks[8];
+    uint8_t rx_head;
+    uint8_t rx_tail;
+    uint8_t rx_count;
+    uint32_t rx_sequence;
 } TestCtx_T;
 
 static TestCtx_T g_test;
@@ -60,6 +65,31 @@ static void Test_PushEvent(Modem4G_NetworkEventType_T type,
     g_test.event_count++;
 }
 
+static void Test_PushRx(uint8_t socket_id, const uint8_t *data, uint16_t length)
+{
+    Modem4G_TcpRxChunk_T *chunk;
+
+    CHECK_TRUE(length <= MODEM4G_TCP_RX_CHUNK_MAX);
+    CHECK_TRUE(g_test.rx_count < 8U);
+    if ((length > MODEM4G_TCP_RX_CHUNK_MAX) || (g_test.rx_count >= 8U))
+    {
+        return;
+    }
+
+    chunk = &g_test.rx_chunks[g_test.rx_head];
+    (void)memset(chunk, 0, sizeof(*chunk));
+    g_test.rx_sequence++;
+    chunk->sequence = g_test.rx_sequence;
+    chunk->socket_id = socket_id;
+    chunk->length = length;
+    if (length > 0U)
+    {
+        (void)memcpy(chunk->data, data, length);
+    }
+    g_test.rx_head = (uint8_t)((g_test.rx_head + 1U) % 8U);
+    g_test.rx_count++;
+}
+
 static void Test_CompleteAsync(Modem4G_NetworkEventType_T type,
                                uint8_t socket_id,
                                uint8_t result)
@@ -67,6 +97,13 @@ static void Test_CompleteAsync(Modem4G_NetworkEventType_T type,
     Test_PushEvent(type, socket_id, result);
     g_test.modem_busy = 0U;
     g_test.completed_result = AT_CORE_RESULT_ASYNC_EVENT;
+    MC610Tcp_Process();
+}
+
+static void Test_CompleteSync(AT_CoreResult_T result)
+{
+    g_test.modem_busy = 0U;
+    g_test.completed_result = result;
     MC610Tcp_Process();
 }
 
@@ -127,6 +164,25 @@ uint8_t Modem4G_PopNetworkEvent(Modem4G_NetworkEvent_T *event)
     return 1U;
 }
 
+uint8_t Modem4G_PopTcpRxChunk(Modem4G_TcpRxChunk_T *chunk)
+{
+    if ((chunk == 0) || (g_test.rx_count == 0U))
+    {
+        return 0U;
+    }
+    *chunk = g_test.rx_chunks[g_test.rx_tail];
+    g_test.rx_tail = (uint8_t)((g_test.rx_tail + 1U) % 8U);
+    g_test.rx_count--;
+    return 1U;
+}
+
+void Modem4G_FlushTcpRx(void)
+{
+    g_test.rx_head = 0U;
+    g_test.rx_tail = 0U;
+    g_test.rx_count = 0U;
+}
+
 static MC610Tcp_Config_T Test_Config(void)
 {
     MC610Tcp_Config_T config;
@@ -141,10 +197,48 @@ static MC610Tcp_Config_T Test_Config(void)
     return config;
 }
 
+static void Test_BringConnected(void)
+{
+    MC610Tcp_Config_T config;
+
+    config = Test_Config();
+    g_test.modem_ready = 1U;
+    CHECK_TRUE(MC610Tcp_Init(&config) == MC610_TCP_OK);
+    CHECK_TRUE(MC610Tcp_Start() == MC610_TCP_OK);
+
+    MC610Tcp_Process();
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_PDP_ACTIVATING);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command, "AT+MIPCALL=1,\"CMNET\"") == 0);
+    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPCALL, 0U, 1U);
+
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_RX_FORMAT_CONFIGURING);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command, "AT+GTSET=\"IPRFMT\",0") == 0);
+    CHECK_TRUE(g_test.last_transaction.type == AT_CORE_TRANSACTION_SYNC_OK);
+    Test_CompleteSync(AT_CORE_RESULT_OK);
+
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_SOCKET_OPENING);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command,
+                      "AT+MIPOPEN=1,\"server.example.com\",3417,0") == 0);
+    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPOPEN, 1U, 1U);
+
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_RX_CHUNK_CONFIGURING);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command, "AT+MIPDSETS=1,256,0") == 0);
+    CHECK_TRUE(g_test.last_transaction.type == AT_CORE_TRANSACTION_SYNC_OK);
+    Test_CompleteSync(AT_CORE_RESULT_OK);
+
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_CONNECTED);
+    CHECK_TRUE(MC610Tcp_IsConnected() != 0U);
+}
+
 static void Test_ConnectSequence(void)
 {
     MC610Tcp_Config_T config;
     MC610Tcp_Status_T status;
+    MC610Tcp_Stats_T stats;
 
     Test_Reset();
     config = Test_Config();
@@ -164,6 +258,11 @@ static void Test_ConnectSequence(void)
     CHECK_TRUE(g_test.last_transaction.operation_timeout_ms == 30000U);
 
     Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPCALL, 0U, 1U);
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_RX_FORMAT_CONFIGURING);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command, "AT+GTSET=\"IPRFMT\",0") == 0);
+    Test_CompleteSync(AT_CORE_RESULT_OK);
+
     CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_SOCKET_OPENING);
     MC610Tcp_Process();
     CHECK_TRUE(strcmp(g_test.last_command,
@@ -171,32 +270,80 @@ static void Test_ConnectSequence(void)
     CHECK_TRUE(g_test.last_transaction.operation_timeout_ms == 5000U);
 
     Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPOPEN, 1U, 1U);
+    CHECK_TRUE(MC610Tcp_IsConnected() == 0U);
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_RX_CHUNK_CONFIGURING);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command, "AT+MIPDSETS=1,256,0") == 0);
+    Test_CompleteSync(AT_CORE_RESULT_OK);
+
     CHECK_TRUE(MC610Tcp_IsConnected() != 0U);
     MC610Tcp_GetStatus(&status);
     CHECK_TRUE(status.pdp_active != 0U);
     CHECK_TRUE(status.connected != 0U);
+    MC610Tcp_GetStats(&stats);
+    CHECK_TRUE(stats.rx_format_config_attempts == 1U);
+    CHECK_TRUE(stats.rx_chunk_config_attempts == 1U);
+    CHECK_TRUE(stats.connect_successes == 1U);
+}
+
+static void Test_RxByteStreamAndOverflow(void)
+{
+    static const uint8_t hello[] = { 'H', 'e', 'l', 'l', 'o' };
+    uint8_t chunk[200];
+    uint8_t output[16];
+    uint16_t index;
+    MC610Tcp_Status_T status;
+    MC610Tcp_Stats_T stats;
+
+    Test_Reset();
+    Test_BringConnected();
+
+    Test_PushRx(1U, hello, sizeof(hello));
+    MC610Tcp_Process();
+    CHECK_TRUE(MC610Tcp_RxAvailable() == sizeof(hello));
+    MC610Tcp_GetStatus(&status);
+    CHECK_TRUE(status.rx_available == sizeof(hello));
+    CHECK_TRUE(MC610Tcp_Read(output, 2U) == 2U);
+    CHECK_TRUE(output[0] == 'H');
+    CHECK_TRUE(output[1] == 'e');
+    CHECK_TRUE(MC610Tcp_Read(output, sizeof(output)) == 3U);
+    CHECK_TRUE(memcmp(output, "llo", 3U) == 0);
+    CHECK_TRUE(MC610Tcp_RxAvailable() == 0U);
+
+    for (index = 0U; index < sizeof(chunk); index++)
+    {
+        chunk[index] = (uint8_t)index;
+    }
+    Test_PushRx(1U, chunk, sizeof(chunk));
+    Test_PushRx(1U, chunk, sizeof(chunk));
+    MC610Tcp_Process();
+    CHECK_TRUE(MC610Tcp_RxAvailable() == 400U);
+
+    Test_PushRx(1U, chunk, sizeof(chunk));
+    MC610Tcp_Process();
+    MC610Tcp_GetStatus(&status);
+    CHECK_TRUE(status.rx_overflow != 0U);
+    CHECK_TRUE(status.rx_available == 400U);
+    MC610Tcp_GetStats(&stats);
+    CHECK_TRUE(stats.rx_overflow_chunks == 1U);
+    CHECK_TRUE(stats.rx_dropped_bytes == sizeof(chunk));
+
+    MC610Tcp_FlushRx();
+    CHECK_TRUE(MC610Tcp_RxAvailable() == 0U);
+    MC610Tcp_GetStatus(&status);
+    CHECK_TRUE(status.rx_overflow == 0U);
 }
 
 static void Test_RemoteCloseSchedulesReconnect(void)
 {
-    MC610Tcp_Config_T config;
-
     Test_Reset();
-    config = Test_Config();
-    g_test.modem_ready = 1U;
-    CHECK_TRUE(MC610Tcp_Init(&config) == MC610_TCP_OK);
-    CHECK_TRUE(MC610Tcp_Start() == MC610_TCP_OK);
-    MC610Tcp_Process();
-    MC610Tcp_Process();
-    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPCALL, 0U, 1U);
-    MC610Tcp_Process();
-    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPOPEN, 1U, 1U);
-    CHECK_TRUE(MC610Tcp_IsConnected() != 0U);
+    Test_BringConnected();
 
     Test_PushEvent(MODEM4G_NETWORK_EVENT_MIPSTAT, 1U, 2U);
     MC610Tcp_Process();
     CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_RETRY_WAIT);
     CHECK_TRUE(MC610Tcp_IsConnected() == 0U);
+    CHECK_TRUE(MC610Tcp_RxAvailable() == 0U);
 
     g_test.now_ms += 999U;
     MC610Tcp_Process();
@@ -208,18 +355,8 @@ static void Test_RemoteCloseSchedulesReconnect(void)
 
 static void Test_StopClosesSocketAndPdp(void)
 {
-    MC610Tcp_Config_T config;
-
     Test_Reset();
-    config = Test_Config();
-    g_test.modem_ready = 1U;
-    CHECK_TRUE(MC610Tcp_Init(&config) == MC610_TCP_OK);
-    CHECK_TRUE(MC610Tcp_Start() == MC610_TCP_OK);
-    MC610Tcp_Process();
-    MC610Tcp_Process();
-    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPCALL, 0U, 1U);
-    MC610Tcp_Process();
-    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPOPEN, 1U, 1U);
+    Test_BringConnected();
 
     MC610Tcp_Stop();
     MC610Tcp_Process();
@@ -236,6 +373,29 @@ static void Test_StopClosesSocketAndPdp(void)
     CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_STOPPED);
 }
 
+static void Test_RxConfigFailureClosesSocket(void)
+{
+    MC610Tcp_Config_T config;
+
+    Test_Reset();
+    config = Test_Config();
+    g_test.modem_ready = 1U;
+    CHECK_TRUE(MC610Tcp_Init(&config) == MC610_TCP_OK);
+    CHECK_TRUE(MC610Tcp_Start() == MC610_TCP_OK);
+    MC610Tcp_Process();
+    MC610Tcp_Process();
+    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPCALL, 0U, 1U);
+    MC610Tcp_Process();
+    Test_CompleteSync(AT_CORE_RESULT_OK);
+    MC610Tcp_Process();
+    Test_CompleteAsync(MODEM4G_NETWORK_EVENT_MIPOPEN, 1U, 1U);
+    MC610Tcp_Process();
+    CHECK_TRUE(strcmp(g_test.last_command, "AT+MIPDSETS=1,256,0") == 0);
+    Test_CompleteSync(AT_CORE_RESULT_ERROR);
+    CHECK_TRUE(MC610Tcp_GetState() == MC610_TCP_STATE_SOCKET_CLOSING);
+    CHECK_TRUE(MC610Tcp_IsConnected() == 0U);
+}
+
 static void Test_InvalidConfigRejected(void)
 {
     MC610Tcp_Config_T config;
@@ -249,8 +409,10 @@ static void Test_InvalidConfigRejected(void)
 int main(void)
 {
     Test_ConnectSequence();
+    Test_RxByteStreamAndOverflow();
     Test_RemoteCloseSchedulesReconnect();
     Test_StopClosesSocketAndPdp();
+    Test_RxConfigFailureClosesSocket();
     Test_InvalidConfigRejected();
 
     if (g_failures != 0)
