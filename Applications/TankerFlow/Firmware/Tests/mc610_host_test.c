@@ -433,6 +433,40 @@ static void Test_AsyncTransactionKeepsUnrelatedUrcSeparate(void)
     CHECK_TRUE(Modem4G_TakeResult() == AT_CORE_RESULT_ASYNC_EVENT);
 }
 
+
+static void Test_StructuredNetworkEvents(void)
+{
+    Modem4G_NetworkEvent_T event;
+
+    Test_ResetIo();
+    Modem4G_Init();
+
+    Test_Feed("+MIPCALL:10.1.2.3\r\n");
+    CHECK_TRUE(Modem4G_PopNetworkEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_NETWORK_EVENT_MIPCALL);
+    CHECK_TRUE(event.result == 1U);
+
+    Test_Feed("+MIPOPEN: 1,1\r\n");
+    CHECK_TRUE(Modem4G_PopNetworkEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_NETWORK_EVENT_MIPOPEN);
+    CHECK_TRUE(event.socket_id == 1U);
+    CHECK_TRUE(event.result == 1U);
+
+    Test_Feed("+MIPSTAT: 1,2,1234\r\n");
+    CHECK_TRUE(Modem4G_PopNetworkEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_NETWORK_EVENT_MIPSTAT);
+    CHECK_TRUE(event.socket_id == 1U);
+    CHECK_TRUE(event.result == 2U);
+    CHECK_TRUE(event.acknowledged_bytes == 1234U);
+
+    Test_Feed("+MIPCLOSE: 1,5678,0\r\n");
+    CHECK_TRUE(Modem4G_PopNetworkEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_NETWORK_EVENT_MIPCLOSE);
+    CHECK_TRUE(event.socket_id == 1U);
+    CHECK_TRUE(event.result == 0U);
+    CHECK_TRUE(event.acknowledged_bytes == 5678U);
+}
+
 static void Test_BootTimeoutUsesHardwareReset(void)
 {
     Test_ResetIo();
@@ -468,6 +502,7 @@ int main(void)
     Test_UrcEnableFailureIsNonFatal();
     Test_UrcDispatcherWhileIdle();
     Test_AsyncTransactionKeepsUnrelatedUrcSeparate();
+    Test_StructuredNetworkEvents();
     Test_BootTimeoutUsesHardwareReset();
 
     if (g_failures != 0)

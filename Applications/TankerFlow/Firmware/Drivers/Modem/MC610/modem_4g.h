@@ -55,6 +55,24 @@ typedef struct
     uint32_t last_ok_ms;
 } Modem4G_Status_T;
 
+typedef enum
+{
+    MODEM4G_NETWORK_EVENT_NONE = 0,
+    MODEM4G_NETWORK_EVENT_MIPCALL,
+    MODEM4G_NETWORK_EVENT_MIPOPEN,
+    MODEM4G_NETWORK_EVENT_MIPCLOSE,
+    MODEM4G_NETWORK_EVENT_MIPSTAT
+} Modem4G_NetworkEventType_T;
+
+typedef struct
+{
+    uint32_t sequence;
+    uint32_t acknowledged_bytes;
+    Modem4G_NetworkEventType_T type;
+    uint8_t socket_id;
+    uint8_t result;
+} Modem4G_NetworkEvent_T;
+
 typedef struct
 {
     uint32_t urc_count;
@@ -70,6 +88,7 @@ typedef struct
     uint32_t state_transitions;
     uint32_t command_failures;
     uint32_t ready_count;
+    uint32_t network_event_overflow;
 } Modem4G_Stats_T;
 
 void Modem4G_Init(void);
@@ -90,5 +109,12 @@ AT_CoreResult_T Modem4G_TakeResult(void);
 const AT_CoreStats_T *Modem4G_GetAtStats(void);
 void Modem4G_GetStats(Modem4G_Stats_T *stats);
 uint16_t Modem4G_GetLastUrc(char *dst, uint16_t capacity);
+
+/*
+ * Pop one structured MIPxxx network event captured by the MC610 URC router.
+ * The queue is intentionally small and single-consumer: higher layers should
+ * consume these events from the foreground loop, never from an ISR.
+ */
+uint8_t Modem4G_PopNetworkEvent(Modem4G_NetworkEvent_T *event);
 
 #endif /* MODEM_4G_H */
