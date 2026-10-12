@@ -788,6 +788,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\Drivers\Modem\MC610\mc610_tcp.c</FilePath>
             </File>
+            <File>
+              <FileName>mc610_tcp_tx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\Drivers\Modem\MC610\mc610_tcp_tx.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

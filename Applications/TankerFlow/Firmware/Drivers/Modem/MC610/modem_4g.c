@@ -5,6 +5,7 @@
 #define MODEM4G_READ_CHUNK_SIZE         (128U)
 #define MODEM4G_LAST_URC_MAX            (128U)
 #define MODEM4G_NETWORK_EVENT_QUEUE_SIZE (4U)
+#define MODEM4G_DATA_EVENT_QUEUE_SIZE    (6U)
 
 /* MC610 hardware-guide minimums plus small scheduling margin. */
 #define MODEM4G_VBAT_SETTLE_MS          (30U)
@@ -62,6 +63,10 @@ static void Modem4G_HandleMipCallUrc(const char *line, uint16_t length);
 static void Modem4G_HandleMipOpenUrc(const char *line, uint16_t length);
 static void Modem4G_HandleMipCloseUrc(const char *line, uint16_t length);
 static void Modem4G_HandleMipStatUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipSendUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipPushUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipXoffUrc(const char *line, uint16_t length);
+static void Modem4G_HandleMipXonUrc(const char *line, uint16_t length);
 static void Modem4G_HandleTcpEventUrc(const char *line, uint16_t length);
 
 static const Modem4G_UrcRoute_T g_urc_routes[] =
@@ -84,11 +89,11 @@ static const Modem4G_UrcRoute_T g_urc_routes[] =
     { "+MIPNTP:", Modem4G_HandleTcpEventUrc },
     { "+MPING:", Modem4G_HandleTcpEventUrc },
     { "+MPINGSTAT:", Modem4G_HandleTcpEventUrc },
-    { "+MIPXOFF", Modem4G_HandleTcpEventUrc },
-    { "+MIPXON", Modem4G_HandleTcpEventUrc },
+    { "+MIPXOFF", Modem4G_HandleMipXoffUrc },
+    { "+MIPXON", Modem4G_HandleMipXonUrc },
     { "+MIPDATA:", Modem4G_HandleTcpEventUrc },
-    { "+MIPPUSH:", Modem4G_HandleTcpEventUrc },
-    { "+MIPSEND:", Modem4G_HandleTcpEventUrc }
+    { "+MIPPUSH:", Modem4G_HandleMipPushUrc },
+    { "+MIPSEND:", Modem4G_HandleMipSendUrc }
 };
 
 #define MODEM4G_URC_ROUTE_COUNT \
@@ -141,6 +146,12 @@ static uint8_t g_network_event_head;
 static uint8_t g_network_event_tail;
 static uint8_t g_network_event_count;
 static uint32_t g_network_event_sequence;
+static Modem4G_DataEvent_T g_data_events[MODEM4G_DATA_EVENT_QUEUE_SIZE];
+static uint8_t g_data_event_head;
+static uint8_t g_data_event_tail;
+static uint8_t g_data_event_count;
+static uint32_t g_data_event_sequence;
+static uint8_t g_raw_write_active;
 static uint32_t g_state_start_ms;
 static uint32_t g_boot_sync_start_ms;
 static uint32_t g_retry_start_ms;
@@ -229,6 +240,42 @@ static void Modem4G_ResetNetworkEvents(void)
     g_network_event_tail = 0U;
     g_network_event_count = 0U;
     g_network_event_sequence = 0U;
+}
+
+static void Modem4G_ResetDataEvents(void)
+{
+    g_data_event_head = 0U;
+    g_data_event_tail = 0U;
+    g_data_event_count = 0U;
+    g_data_event_sequence = 0U;
+}
+
+static void Modem4G_PushDataEvent(Modem4G_DataEventType_T type,
+                                  uint8_t socket_id,
+                                  uint8_t status,
+                                  uint32_t value)
+{
+    Modem4G_DataEvent_T *event;
+
+    if (g_data_event_count >= MODEM4G_DATA_EVENT_QUEUE_SIZE)
+    {
+        g_data_event_tail = (uint8_t)((g_data_event_tail + 1U) %
+                                      MODEM4G_DATA_EVENT_QUEUE_SIZE);
+        g_data_event_count--;
+        g_modem_stats.data_event_overflow++;
+    }
+
+    event = &g_data_events[g_data_event_head];
+    g_data_event_sequence++;
+    event->sequence = g_data_event_sequence;
+    event->value = value;
+    event->type = type;
+    event->socket_id = socket_id;
+    event->status = status;
+
+    g_data_event_head = (uint8_t)((g_data_event_head + 1U) %
+                                  MODEM4G_DATA_EVENT_QUEUE_SIZE);
+    g_data_event_count++;
 }
 
 static void Modem4G_PushNetworkEvent(Modem4G_NetworkEventType_T type,
@@ -706,6 +753,99 @@ static void Modem4G_HandleMipStatUrc(const char *line, uint16_t length)
                              acknowledged_bytes);
 }
 
+static void Modem4G_HandleMipSendUrc(const char *line, uint16_t length)
+{
+    const char *cursor;
+    uint32_t socket_id;
+    uint32_t status;
+    uint32_t free_size;
+
+    (void)length;
+    g_modem_stats.tcp_event_urc_count++;
+    g_modem_stats.mipsend_count++;
+    cursor = Modem4G_AfterColon(line);
+    if ((cursor == 0) ||
+        (Modem4G_ParseUint32(&cursor, &socket_id) == 0U) ||
+        (socket_id > 255U) ||
+        (Modem4G_ConsumeComma(&cursor) == 0U) ||
+        (Modem4G_ParseUint32(&cursor, &status) == 0U) ||
+        (status > 255U) ||
+        (Modem4G_ConsumeComma(&cursor) == 0U) ||
+        (Modem4G_ParseUint32(&cursor, &free_size) == 0U))
+    {
+        return;
+    }
+
+    Modem4G_PushDataEvent(MODEM4G_DATA_EVENT_MIPSEND,
+                          (uint8_t)socket_id,
+                          (uint8_t)status,
+                          free_size);
+}
+
+static void Modem4G_HandleMipPushUrc(const char *line, uint16_t length)
+{
+    const char *cursor;
+    uint32_t socket_id;
+    uint32_t status;
+    uint32_t accumulated_sent_length;
+
+    (void)length;
+    g_modem_stats.tcp_event_urc_count++;
+    g_modem_stats.mippush_count++;
+    cursor = Modem4G_AfterColon(line);
+    if ((cursor == 0) ||
+        (Modem4G_ParseUint32(&cursor, &socket_id) == 0U) ||
+        (socket_id > 255U) ||
+        (Modem4G_ConsumeComma(&cursor) == 0U) ||
+        (Modem4G_ParseUint32(&cursor, &status) == 0U) ||
+        (status > 255U))
+    {
+        return;
+    }
+
+    accumulated_sent_length = 0U;
+    if (Modem4G_ConsumeComma(&cursor) != 0U)
+    {
+        (void)Modem4G_ParseUint32(&cursor, &accumulated_sent_length);
+    }
+    Modem4G_PushDataEvent(MODEM4G_DATA_EVENT_MIPPUSH,
+                          (uint8_t)socket_id,
+                          (uint8_t)status,
+                          accumulated_sent_length);
+}
+
+static void Modem4G_HandleMipFlowUrc(const char *line,
+                                     Modem4G_DataEventType_T type)
+{
+    const char *cursor;
+    uint32_t socket_id;
+
+    cursor = Modem4G_AfterColon(line);
+    if ((cursor == 0) ||
+        (Modem4G_ParseUint32(&cursor, &socket_id) == 0U) ||
+        (socket_id > 255U))
+    {
+        return;
+    }
+    Modem4G_PushDataEvent(type, (uint8_t)socket_id, 0U, 0U);
+}
+
+static void Modem4G_HandleMipXoffUrc(const char *line, uint16_t length)
+{
+    (void)length;
+    g_modem_stats.tcp_event_urc_count++;
+    g_modem_stats.mipxoff_count++;
+    Modem4G_HandleMipFlowUrc(line, MODEM4G_DATA_EVENT_MIPXOFF);
+}
+
+static void Modem4G_HandleMipXonUrc(const char *line, uint16_t length)
+{
+    (void)length;
+    g_modem_stats.tcp_event_urc_count++;
+    g_modem_stats.mipxon_count++;
+    Modem4G_HandleMipFlowUrc(line, MODEM4G_DATA_EVENT_MIPXON);
+}
+
 static void Modem4G_HandleTcpEventUrc(const char *line, uint16_t length)
 {
     (void)line;
@@ -778,6 +918,8 @@ static void Modem4G_EnterHardwareReset(void)
     g_status.reset_attempts++;
     g_modem_stats.reset_count++;
     Modem4G_ResetNetworkEvents();
+    Modem4G_ResetDataEvents();
+    g_raw_write_active = 0U;
     AT_Core_Reset(&g_at_core);
     PlatformPort_ModemPowerKeyRelease();
     PlatformPort_ModemResetAssert();
@@ -1242,6 +1384,8 @@ void Modem4G_Init(void)
     g_status.creg = MODEM4G_REG_INVALID;
     g_last_urc[0] = '\0';
     Modem4G_ResetNetworkEvents();
+    Modem4G_ResetDataEvents();
+    g_raw_write_active = 0U;
     g_state_start_ms = PlatformPort_GetMs();
     g_boot_sync_start_ms = g_state_start_ms;
     g_retry_start_ms = g_state_start_ms;
@@ -1280,6 +1424,8 @@ void Modem4G_Start(void)
     g_status.reset_attempts = 0U;
     g_status.last_ok_ms = 0U;
     Modem4G_ResetNetworkEvents();
+    Modem4G_ResetDataEvents();
+    g_raw_write_active = 0U;
     Modem4G_ResetCommandTracking();
     Modem4G_SetState(MODEM4G_STATE_VBAT_SETTLE);
 }
@@ -1322,6 +1468,10 @@ void Modem4G_GetStatus(Modem4G_Status_T *status)
 
 AT_CoreStartResult_T Modem4G_StartTransaction(const AT_CoreTransaction_T *transaction)
 {
+    if (g_raw_write_active != 0U)
+    {
+        return AT_CORE_START_BUSY;
+    }
     if ((g_status.state != MODEM4G_STATE_OFF) &&
         (g_status.state != MODEM4G_STATE_READY) &&
         (g_status.state != MODEM4G_STATE_ERROR))
@@ -1339,6 +1489,10 @@ AT_CoreStartResult_T Modem4G_StartCommand(const char *command,
 {
     AT_CoreCommand_T request;
 
+    if (g_raw_write_active != 0U)
+    {
+        return AT_CORE_START_BUSY;
+    }
     if ((g_status.state != MODEM4G_STATE_OFF) &&
         (g_status.state != MODEM4G_STATE_READY) &&
         (g_status.state != MODEM4G_STATE_ERROR))
@@ -1394,6 +1548,49 @@ uint8_t Modem4G_PopNetworkEvent(Modem4G_NetworkEvent_T *event)
                                      MODEM4G_NETWORK_EVENT_QUEUE_SIZE);
     g_network_event_count--;
     return 1U;
+}
+
+uint8_t Modem4G_PopDataEvent(Modem4G_DataEvent_T *event)
+{
+    if ((event == 0) || (g_data_event_count == 0U))
+    {
+        return 0U;
+    }
+
+    *event = g_data_events[g_data_event_tail];
+    g_data_event_tail = (uint8_t)((g_data_event_tail + 1U) %
+                                  MODEM4G_DATA_EVENT_QUEUE_SIZE);
+    g_data_event_count--;
+    return 1U;
+}
+
+uint8_t Modem4G_BeginRawWrite(void)
+{
+    if ((g_raw_write_active != 0U) || (AT_Core_IsBusy(&g_at_core) != 0U))
+    {
+        return 0U;
+    }
+    g_raw_write_active = 1U;
+    return 1U;
+}
+
+uint16_t Modem4G_WriteRaw(const uint8_t *data, uint16_t length)
+{
+    if (g_raw_write_active == 0U)
+    {
+        return 0U;
+    }
+    return AT_Core_WriteRaw(&g_at_core, data, length);
+}
+
+void Modem4G_EndRawWrite(void)
+{
+    g_raw_write_active = 0U;
+}
+
+uint8_t Modem4G_IsRawWriteActive(void)
+{
+    return g_raw_write_active;
 }
 
 uint16_t Modem4G_GetLastUrc(char *dst, uint16_t capacity)

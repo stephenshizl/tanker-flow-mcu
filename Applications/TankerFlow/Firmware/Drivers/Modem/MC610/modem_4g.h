@@ -73,6 +73,24 @@ typedef struct
     uint8_t result;
 } Modem4G_NetworkEvent_T;
 
+typedef enum
+{
+    MODEM4G_DATA_EVENT_NONE = 0,
+    MODEM4G_DATA_EVENT_MIPSEND,
+    MODEM4G_DATA_EVENT_MIPPUSH,
+    MODEM4G_DATA_EVENT_MIPXOFF,
+    MODEM4G_DATA_EVENT_MIPXON
+} Modem4G_DataEventType_T;
+
+typedef struct
+{
+    uint32_t sequence;
+    uint32_t value; /* MIPSEND free size or MIPPUSH accumulated sent length. */
+    Modem4G_DataEventType_T type;
+    uint8_t socket_id;
+    uint8_t status;
+} Modem4G_DataEvent_T;
+
 typedef struct
 {
     uint32_t urc_count;
@@ -89,6 +107,11 @@ typedef struct
     uint32_t command_failures;
     uint32_t ready_count;
     uint32_t network_event_overflow;
+    uint32_t data_event_overflow;
+    uint32_t mipsend_count;
+    uint32_t mippush_count;
+    uint32_t mipxoff_count;
+    uint32_t mipxon_count;
 } Modem4G_Stats_T;
 
 void Modem4G_Init(void);
@@ -116,5 +139,21 @@ uint16_t Modem4G_GetLastUrc(char *dst, uint16_t capacity);
  * consume these events from the foreground loop, never from an ISR.
  */
 uint8_t Modem4G_PopNetworkEvent(Modem4G_NetworkEvent_T *event);
+
+/*
+ * TCP data-plane events are kept separate from connection-control events so
+ * MC610Tcp and the TX/RX data plane cannot consume each other's notifications.
+ */
+uint8_t Modem4G_PopDataEvent(Modem4G_DataEvent_T *event);
+
+/*
+ * Reserve the AT channel while a prompt-mode raw payload is in progress.
+ * The current firmware is bare-metal/single-owner; this is a lightweight
+ * protocol-state guard rather than an RTOS mutex.
+ */
+uint8_t Modem4G_BeginRawWrite(void);
+uint16_t Modem4G_WriteRaw(const uint8_t *data, uint16_t length);
+void Modem4G_EndRawWrite(void);
+uint8_t Modem4G_IsRawWriteActive(void);
 
 #endif /* MODEM_4G_H */

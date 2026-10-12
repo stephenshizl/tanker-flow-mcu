@@ -467,6 +467,61 @@ static void Test_StructuredNetworkEvents(void)
     CHECK_TRUE(event.acknowledged_bytes == 5678U);
 }
 
+static void Test_StructuredDataEventsAndRawWriteGuard(void)
+{
+    Modem4G_DataEvent_T event;
+    Modem4G_Stats_T stats;
+    AT_CoreTransaction_T transaction;
+    static const uint8_t raw[] = { 0x11U, 0x22U, 0x33U };
+
+    Test_ResetIo();
+    Modem4G_Init();
+
+    Test_Feed("+MIPPUSH: 1,0,123\r\n");
+    CHECK_TRUE(Modem4G_PopDataEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_DATA_EVENT_MIPPUSH);
+    CHECK_TRUE(event.socket_id == 1U);
+    CHECK_TRUE(event.status == 0U);
+    CHECK_TRUE(event.value == 123U);
+
+    Test_Feed("+MIPSEND: 1,0,1900\r\n");
+    CHECK_TRUE(Modem4G_PopDataEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_DATA_EVENT_MIPSEND);
+    CHECK_TRUE(event.socket_id == 1U);
+    CHECK_TRUE(event.status == 0U);
+    CHECK_TRUE(event.value == 1900U);
+
+    Test_Feed("+MIPXOFF: 1\r\n+MIPXON: 1\r\n");
+    CHECK_TRUE(Modem4G_PopDataEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_DATA_EVENT_MIPXOFF);
+    CHECK_TRUE(Modem4G_PopDataEvent(&event) != 0U);
+    CHECK_TRUE(event.type == MODEM4G_DATA_EVENT_MIPXON);
+
+    Modem4G_GetStats(&stats);
+    CHECK_TRUE(stats.mippush_count == 1U);
+    CHECK_TRUE(stats.mipsend_count == 1U);
+    CHECK_TRUE(stats.mipxoff_count == 1U);
+    CHECK_TRUE(stats.mipxon_count == 1U);
+
+    CHECK_TRUE(Modem4G_BeginRawWrite() != 0U);
+    CHECK_TRUE(Modem4G_IsRawWriteActive() != 0U);
+    CHECK_TRUE(Modem4G_WriteRaw(raw, sizeof(raw)) == sizeof(raw));
+    CHECK_TRUE(g_io.tx_length == sizeof(raw));
+    CHECK_TRUE(memcmp(g_io.tx, raw, sizeof(raw)) == 0);
+
+    transaction.command = "AT";
+    transaction.response_prefix = 0;
+    transaction.type = AT_CORE_TRANSACTION_SYNC_OK;
+    transaction.response_timeout_ms = 1000U;
+    transaction.operation_timeout_ms = 0U;
+    transaction.async_match = 0;
+    CHECK_TRUE(Modem4G_StartTransaction(&transaction) == AT_CORE_START_BUSY);
+
+    Modem4G_EndRawWrite();
+    CHECK_TRUE(Modem4G_IsRawWriteActive() == 0U);
+    CHECK_TRUE(Modem4G_StartTransaction(&transaction) == AT_CORE_START_OK);
+}
+
 static void Test_BootTimeoutUsesHardwareReset(void)
 {
     Test_ResetIo();
@@ -503,6 +558,7 @@ int main(void)
     Test_UrcDispatcherWhileIdle();
     Test_AsyncTransactionKeepsUnrelatedUrcSeparate();
     Test_StructuredNetworkEvents();
+    Test_StructuredDataEventsAndRawWriteGuard();
     Test_BootTimeoutUsesHardwareReset();
 
     if (g_failures != 0)
